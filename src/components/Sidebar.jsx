@@ -180,6 +180,12 @@ const renderSidebarLinks = (role, isCollapsed = false) => (
             <i className="fas fa-file-alt me-2"></i>{!isCollapsed && 'Self Assessment Report'}
           </Link>
         </li>
+      
+             <li className="nav-item mb-2">
+              <Link className="nav-link text-white" to="/agent/components/Help ">
+              <i className="fas fa-question-circle me-2"></i>{!isCollapsed && 'Help And Support'}</Link>
+            </li> 
+       
       </>
     )}
     {role === 'superadmin' && (

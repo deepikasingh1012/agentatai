@@ -2,7 +2,7 @@ import axios from "axios";
 
 
 
-const BASE_URL = "https://dev-atai-api.raghavsolars.com/public/api";
+const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
 
 export const getClientId = () => localStorage.getItem("clientId");
 

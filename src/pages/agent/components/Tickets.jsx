@@ -228,6 +228,8 @@ export default function Tickets() {
 
       const filtered = allTickets.filter((ticket) => {
         const ticketDate = new Date(ticket.created_at);
+      
+
         return ticketDate >= from && ticketDate <= to;
       });
 
@@ -334,7 +336,7 @@ export default function Tickets() {
         })}
       </div>
 
-      <div className="row mb-3">
+      <div className="row g-2 mb-3">
         <div className="col-md-2">
           <Form.Group>
             <Form.Label>From Date</Form.Label>
@@ -366,7 +368,8 @@ export default function Tickets() {
           </Button>
           {/* <div className="row mb-3 justify-content-end">
           <div className="col-auto"> */}
-          <div className="col-md-2 d-flex align-items-end"></div>
+          <div className="col-md-1  d-flex align-items-end justify-content-end w-100"></div>
+          <Form.Label className="invisible">Date Filter</Form.Label>
           <select
             className="form-select"
             value={dateFilter}

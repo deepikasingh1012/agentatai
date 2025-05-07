@@ -50,6 +50,7 @@ const UserConversation = () => {
   ];
 
   const [status, setStatus] = useState("");
+
   const clientId = localStorage.getItem("clientId");
 
   const fetchData = async () => {
@@ -72,14 +73,36 @@ const UserConversation = () => {
         getUserInquiry(userId, clientId),
       ]);
 
+      console.log("🛠 full inquiries payload:", inquiries);
+      console.log("🛠 full userInquiry payload:", userInquiry);
+
       setTickets(inquiries?.data || []);
 
-      const inquiryData = inquiries?.data?.[0];
+      // const inquiryData = inquiries?.data?.[0];
+      const inquiryData = Array.isArray(inquiries.data)
+        ? inquiries.data.find((item) => String(item.User_id) === String(userId))
+        : null;
 
+      if (!inquiryData) {
+        setError("No inquiry data found for this user.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("📋 inquiryData raw:", inquiryData);
       if (inquiryData) {
+        console.log(" - agent_remarks?:", inquiryData.agent_remarks);
+        console.log(" - p_agent_remarks?:", inquiryData.p_agent_remarks);
+        console.log(" - status?:", inquiryData.status);
+        console.log(" - p_status?:", inquiryData.p_status);
+        console.log(" - Next_followup?:", inquiryData.Next_followup);
+        console.log(" - p_Next_followup?:", inquiryData.p_Next_followup);
+      }
+
+      if (userInquiry) {
         const mergedData = {
           id: inquiryData.id,
-          Client_name: inquiryData.Client_name,
+          clientName: inquiryData.client_name,
           contact: inquiryData.contact,
           email: inquiryData.email,
           created_at: inquiryData.created_at,
@@ -87,37 +110,59 @@ const UserConversation = () => {
           last_question: inquiryData.last_question,
           conversation_duration: inquiryData.conversation_duration,
           User_id: inquiryData.User_id,
-          Next_followup: inquiryData.Next_followup,
-         
+          Next_followup:
+            inquiryData.p_Next_followup ?? inquiryData.p_Next_followup,
+          agent_remarks:
+            inquiryData.p_agent_remarks ?? inquiryData.p_agent_remarks,
+          status_code: inquiryData.p_status ?? inquiryData.p_status,
         };
-console.log("inquiryData",inquiryData);
+
         if (userInquiry?.success) {
-          mergedData.id = userInquiry.id || mergedData.id;
+          mergedData.id = inquiryData.id || mergedData.id;
           mergedData.Client_name =
-            userInquiry.clientName || mergedData.Client_name;
-          mergedData.contact = userInquiry.contact || mergedData.contact;
-          mergedData.email = userInquiry.email || mergedData.email;
+            inquiryData.Client_name || mergedData.Client_name;
+          mergedData.contact = inquiryData.contact || mergedData.contact;
+          mergedData.email = inquiryData.email || mergedData.email;
           mergedData.last_question =
             userInquiry.lastQuestion || inquiryData.last_question;
           mergedData.conversation_duration =
-            userInquiry.conversationDuration ||
-            inquiryData.conversation_duration;
-          mergedData.User_id =  userInquiry.User_id ||  inquiryData.User_id;
-          mergedData.Next_followup =
-            userInquiry.Next_followup || inquiryData.Next_followup;
+            inquiryData.conversationDuration ||
+            mergedData.conversation_duration;
+          mergedData.User_id = inquiryData.User_id || mergedData.User_id;
+
           mergedData.created_at =
-            userInquiry.created_at || mergedData.created_at;
+            inquiryData.created_at || mergedData.created_at;
           mergedData.updated_at =
-            userInquiry.updated_at || mergedData.updated_at;
+            inquiryData.updated_at || mergedData.updated_at;
+          mergedData.agent_remarks =
+            inquiryData.p_agent_remarks ??
+            inquiryData.agent_remarks ??
+            mergedData.agent_remarks;
+          mergedData.status_code =
+            inquiryData.p_status ??
+            inquiryData.status ??
+            mergedData.status_code;
+          mergedData.Next_followup =
+            inquiryData.Next_followup ??
+            inquiryData.Next_followup ??
+            mergedData.Next_followup;
         }
-console.log("userInquiry",userInquiry);
+        console.log("inquiryData", inquiryData);
         setInquiry(mergedData);
-        console.log("mergedData",mergedData);
+        console.log("mergedData", mergedData);
 
         // 💡 Reset form fields on every ticket load
-        setAgentRemarks("");
-        setStatus("");
-        setFollowUpDate("");
+        setAgentRemarks(mergedData.agent_remarks ?? "");
+        setStatus(mergedData.status_code ?? "");
+        if (mergedData.Next_followup) {
+          const d = new Date(mergedData.Next_followup);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          setFollowUpDate(`${yyyy}-${mm}-${dd}`);
+        } else {
+          setFollowUpDate("");
+        }
 
         setError(null);
       } else {
@@ -228,10 +273,18 @@ console.log("userInquiry",userInquiry);
       // await fetchData();
       console.log("✅ Inquiry updated successfully:", response);
 
-      // Clear form fields after successful update
-      setAgentRemarks("");
-      setStatus("");
-      setFollowUpDate("");
+      //  form fields after successful update
+      setAgentRemarks(inquiry.p_agent_remarks ?? "");
+      setStatus(inquiry.p_status ?? "");
+      if (inquiry.p_Next_followup) {
+        const d = new Date(inquiry.p_Next_followup);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        setFollowUpDate(`${yyyy}-${mm}-${dd}`);
+      } else {
+        setFollowUpDate("");
+      }
 
       navigate("/agent/components/Tickets", { replace: true });
     } catch (err) {
@@ -263,7 +316,7 @@ console.log("userInquiry",userInquiry);
         p_id: inquiry.id,
         p_status: statusOptions.find((opt) => opt.code === status)?.label || "",
         p_User_id: inquiry.User_id ?? inquiry.User_id ?? null,
-        p_Client_name: inquiry.client_name ?? inquiry.Client_name ?? "no",
+        p_Client_name: inquiry.Client_name ?? inquiry.Client_name ?? "no",
         p_contact: inquiry.contact ?? "no",
         p_email: inquiry.email ?? "no",
         p_last_question: inquiry.last_question ?? "",
@@ -273,23 +326,7 @@ console.log("userInquiry",userInquiry);
         p_updated_at: inquiry.updated_at ?? "no",
       }
     : null;
-     console.log("inquirydetails",inquiryDetails);
-
-
-    // const formatDateTime = (datetime) => {
-    //   if (!datetime) return "N/A";
-    //   const dateObj = new Date(datetime);
-    //   const date = dateObj.toLocaleDateString("en-GB");
-     
-    //   const time = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    //   return (
-    //     <>
-    //       <div>{date}</div>
-    //       <div>{time}</div>
-    //     </>
-    //   );
-    // };
-    
+  console.log("inquirydetails", inquiryDetails);
 
   return (
     <div className="container my-4">
@@ -318,10 +355,10 @@ console.log("userInquiry",userInquiry);
               </th>
               {/* <th>
                 <FontAwesomeIcon icon={faClock} /> Created At
-              </th>
+              </th>*/}
               <th>
-                <FontAwesomeIcon icon={faClock} /> Updated At
-              </th> */}
+                <FontAwesomeIcon icon={faClock} /> Ticket Updated Date
+              </th>
               <th className="text-start">
                 <FaClock className="me-1" /> Conversation Duration
               </th>
@@ -356,25 +393,22 @@ console.log("userInquiry",userInquiry);
           ) : (
             "N/A"
           )}
-        </td>
+        </td>*/}
 
-        <td className="text-start">
-          {inquiry.updated_at ? (
-            <>
-              <div>
-                {new Date(inquiry.updated_at).toLocaleDateString("en-GB")}
-              </div>
-              <div>
-                {new Date(inquiry.updated_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-            </>
-          ) : (
-            "N/A"
-          )}
-        </td> */}
+                <td className="text-start">
+                  {inquiry.updated_at ? (
+                    <div>
+                      {new Date(inquiry.updated_at).toLocaleDateString("en-GB")}{" "}
+                      &nbsp;&nbsp;&nbsp;
+                      {new Date(inquiry.updated_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  ) : (
+                    "N/A"
+                  )}
+                </td>
 
                 <td className="text-start">
                   {inquiry.conversation_duration || "No conversation duration"}
@@ -464,7 +498,7 @@ console.log("userInquiry",userInquiry);
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  disabled={isFollowUpLocked() || isFollowUpDisabled()}
+                  disabled={isFollowUpLocked()}
                 >
                   <option value="">Select a status</option>
                   {statusOptions.map((option) => (
@@ -488,15 +522,7 @@ console.log("userInquiry",userInquiry);
               <label className="form-label">
                 <FaCalendarAlt className="me-2" /> Follow-Up Date
               </label>
-              {/* <input
-                type="date"
-                className="form-control"
-                value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                disabled={isFollowUpLocked()}
-                min={new Date().toISOString().split("T")[0]} // 🧠 disables past dates
-                // min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-              /> */}
+
               <input
                 type="date"
                 className="form-control"
@@ -509,6 +535,13 @@ console.log("userInquiry",userInquiry);
                     ? handleDateClick
                     : null
                 }
+                min={(() => {
+                  const d = new Date();
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const day = String(d.getDate()).padStart(2, "0");
+                  return `${y}-${m}-${day}`;
+                })()}
               />
               {followUpError && (
                 <div className="text-danger mt-1">{followUpError}</div>

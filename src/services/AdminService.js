@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getClientId } from '../services/Service'; // adjust path if needed
 
-const BASE_URL = "https://dev-atai-api.raghavsolars.com/public/api";
+const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
 
 // const fetchData = async (method, url, data = {}) => {
 //     try {

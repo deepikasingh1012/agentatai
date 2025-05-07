@@ -1,19 +1,23 @@
 import axios from "axios";
-import { getClientId } from '../services/Service'; 
+import { getClientId } from "../services/Service";
 
-const BASE_URL = "https://dev-atai-api.raghavsolars.com/public/api";
+const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
 
- // set your clientId here
+// set your clientId here
 
- const clientId = getClientId();
+const clientId = getClientId();
 const fetchData = async (method, url, data = {}) => {
   try {
-    const response = await axios({ method, url: `${BASE_URL}${url}`, data , headers: { "Content-Type": "application/json" },});
+    const response = await axios({
+      method,
+      url: `${BASE_URL}${url}`,
+      data,
+      headers: { "Content-Type": "application/json" },
+    });
     return response.data;
   } catch (error) {
     console.error("Error:", error);
 
-    
     const errorMessage =
       error.response?.data?.message || error.message || "Something went wrong!";
 
@@ -21,13 +25,14 @@ const fetchData = async (method, url, data = {}) => {
   }
 };
 
-
 // 🎯 Inquiry Status Count
 export const getInquiryStatusCount = async () => {
   const clientId = localStorage.getItem("clientId");
   try {
-    const response = await axios.get(`${BASE_URL}/inquiry/status-count/${clientId}`);
-    return response.data;  // will return { success, total_count, data: [...] }
+    const response = await axios.get(
+      `${BASE_URL}/inquiry/status-count/${clientId}`
+    );
+    return response.data; // will return { success, total_count, data: [...] }
   } catch (error) {
     console.error("Error fetching inquiry status count:", error);
     throw error;
@@ -52,8 +57,11 @@ export const verifyUserCredentials = async (credentials) => {
   });
 };
 
-
-export const getInquiryByClientId = async (clientId, page = 1, pageSize = 10) => {
+export const getInquiryByClientId = async (
+  clientId,
+  page = 1,
+  pageSize = 10
+) => {
   try {
     const response = await axios.get(
       `${BASE_URL}/inquiries/${clientId}?page=${page}&page_size=${pageSize}`
@@ -71,8 +79,6 @@ export const getInquiryByClientId = async (clientId, page = 1, pageSize = 10) =>
     return { status: false, data: [] };
   }
 };
-
-
 
 export const updateInquiry = async ({
   p_id,
@@ -95,18 +101,17 @@ export const updateInquiry = async ({
   }
 };
 
-
-
 export const getUserInquiry = async (userId, clientId) => {
   try {
-    
-    const trimmedUserId = userId.includes('-') ? userId.split('-').pop() : userId;
+    const trimmedUserId = userId.includes("-")
+      ? userId.split("-").pop()
+      : userId;
 
     const response = await axios.get(`${BASE_URL}/user-inquiry`, {
       params: {
         user_id: trimmedUserId,
-        client_id: clientId
-      }
+        client_id: clientId,
+      },
     });
 
     if (response.data?.status === "success") {
@@ -120,42 +125,51 @@ export const getUserInquiry = async (userId, clientId) => {
         email: inquiry.email,
         created_at: inquiry.created_at,
         updated_at: inquiry.updated_at,
+        Next_followup: inquiry.p_Next_followup,
+        agent_remarks: inquiry.p_agent_remarks,
+        status_code: inquiry.p_status,
         lastQuestion: {
           id: inquiry.last_question?.id || null,
-          text: inquiry.last_question?.text || ''
-        }
+          text: inquiry.last_question?.text || "",
+        },
       };
     } else {
       return { success: false, data: null };
     }
-
   } catch (error) {
-    console.error(`Error fetching user inquiry for user_id: ${userId} and client_id: ${clientId}`, error);
+    console.error(
+      `Error fetching user inquiry for user_id: ${userId} and client_id: ${clientId}`,
+      error
+    );
     return { success: false, data: null };
   }
 };
 
-
-
 export const getRecentInquiries = async (clientId) => {
   try {
-    const response = await axios.get(`${BASE_URL}/client/${clientId}/recent-inquiries`);
-    
+    const response = await axios.get(
+      `${BASE_URL}/client/${clientId}/recent-inquiries`
+    );
+
     if (response && response.data) {
       return {
         success: true,
         clientId: response.data.client_id,
         newInquiriesCount: response.data.new_inquiries_count,
-        recentInquiries: response.data.recent_inquiries
+        recentInquiries: response.data.recent_inquiries,
       };
     } else {
-      console.error("Unexpected response format from recent-inquiries API:", response);
+      console.error(
+        "Unexpected response format from recent-inquiries API:",
+        response
+      );
       return { success: false, newInquiriesCount: 0, recentInquiries: [] };
     }
-
   } catch (error) {
-    console.error(`Error fetching recent inquiries for client ${clientId}:`, error);
+    console.error(
+      `Error fetching recent inquiries for client ${clientId}:`,
+      error
+    );
     return { success: false, newInquiriesCount: 0, recentInquiries: [] };
   }
 };
-
