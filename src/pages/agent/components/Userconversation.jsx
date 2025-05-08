@@ -19,6 +19,11 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { faClock } from "@fortawesome/free-solid-svg-icons";
+import CryptoJS from "crypto-js";
+const SECRET_KEY = process.env.REACT_APP_ID_SECRET;
+
+// const bytes = CryptoJS.AES.decrypt(decodeURIComponent(token), SECRET_KEY);
+// const userId = bytes.toString(CryptoJS.enc.Utf8);
 
 const UserConversation = () => {
   const [tickets, setTickets] = useState([]);
@@ -35,9 +40,24 @@ const UserConversation = () => {
   const [statusError, setStatusError] = useState("");
   const [followUpError, setFollowUpError] = useState("");
 
-  const queryParams = new URLSearchParams(location.search);
-  const userId = queryParams.get("user_id");
-  console.log("🧾 Extracted userId:", userId);
+    const queryParams = new URLSearchParams(useLocation().search);
+  const token = queryParams.get("token");
+  // decrypt it to get the real userId
+  let decryptedUserId;
+  try {
+    const bytes = CryptoJS.AES.decrypt(decodeURIComponent(token || ""), SECRET_KEY);
+    decryptedUserId = bytes.toString(CryptoJS.enc.Utf8);
+  } catch {
+    decryptedUserId = null;
+    console.error("Invalid or missing token");
+  }
+
+  // const queryParams = new URLSearchParams(location.search);
+  // const userId = queryParams.get("user_id");
+  // console.log("🧾 Extracted userId:", userId);
+
+   console.log("🧾 Decrypted userId:", decryptedUserId);
+ 
 
   const statusOptions = [
     { code: "OPN", label: "Open" },
@@ -57,7 +77,7 @@ const UserConversation = () => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams(location.search);
-      const userIdFromURL = queryParams.get("user_id");
+      const userIdFromURL = decryptedUserId;
 
       if (!userIdFromURL) {
         setError("No user ID provided.");
@@ -70,7 +90,7 @@ const UserConversation = () => {
 
       const [inquiries, userInquiry] = await Promise.all([
         getInquiryByClientId(clientId, page, pageSize),
-        getUserInquiry(userId, clientId),
+        getUserInquiry(decryptedUserId, clientId),
       ]);
 
       console.log("🛠 full inquiries payload:", inquiries);
@@ -80,7 +100,7 @@ const UserConversation = () => {
 
       // const inquiryData = inquiries?.data?.[0];
       const inquiryData = Array.isArray(inquiries.data)
-        ? inquiries.data.find((item) => String(item.User_id) === String(userId))
+             ? inquiries.data.find((item) => String(item.User_id) === String(decryptedUserId))
         : null;
 
       if (!inquiryData) {
@@ -205,6 +225,10 @@ const UserConversation = () => {
 
     return now < followUpDate; // isBefore
   };
+
+  // helper to tell if this ticket is already closed
+const isTicketClosed = () => status === "CRS" || status === "CNR";
+
 
   const handleDateClick = (date) => {
     setFollowUpDate(date); // Store the selected date in state
@@ -336,8 +360,8 @@ const UserConversation = () => {
       </button>
 
       <h4 className="mb-4">
-        <FaClipboardList className="me-2" />
-        Details of Ticket ID: {`CBR-${userId}`}
+       <FaClipboardList className="me-2" />
+        Details of Ticket ID: {`CBR-${decryptedUserId || "unknown"}`}
       </h4>
 
       <div className="table-responsive mb-4">
@@ -461,6 +485,12 @@ const UserConversation = () => {
         </div>
 
         <div className="col-6">
+  
+  {isTicketClosed() && (
+    <div className="alert alert-warning">
+      This ticket is closed; updates are disabled.
+    </div>
+  )}
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <label className="form-label">
@@ -477,6 +507,7 @@ const UserConversation = () => {
                   setAgentRemarks(capitalized);
                 }}
                 placeholder="Enter your remark"
+                disabled={isTicketClosed()}
               />
               {remarkError && (
                 <div className="text-danger mt-1">{remarkError}</div>
@@ -498,7 +529,7 @@ const UserConversation = () => {
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  disabled={isFollowUpLocked()}
+                  disabled={isTicketClosed() || isFollowUpLocked()}
                 >
                   <option value="">Select a status</option>
                   {statusOptions.map((option) => (
@@ -529,7 +560,7 @@ const UserConversation = () => {
                 placeholder="Select follow-up date"
                 value={followUpDate}
                 onChange={(e) => setFollowUpDate(e.target.value)}
-                disabled={isFollowUpLocked() || isFollowUpDisabled()}
+                disabled={isTicketClosed() || isFollowUpLocked() || isFollowUpDisabled()}
                 onClick={
                   !(isFollowUpLocked() || isFollowUpDisabled())
                     ? handleDateClick
@@ -548,7 +579,7 @@ const UserConversation = () => {
               )}
             </div>
 
-            <button type="submit" className="btn btn-success w-100">
+            <button type="submit" className="btn btn-success w-100" disabled={isTicketClosed()}>
               Submit
             </button>
             {error && (

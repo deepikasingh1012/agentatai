@@ -17,6 +17,13 @@ import {
   getInquiryStatusCount,
 } from "../../../services/AgentServices";
 import { useOutletContext } from "react-router-dom";
+import CryptoJS from "crypto-js";
+ const SECRET_KEY = process.env.REACT_APP_ID_SECRET;
+ if (!SECRET_KEY) {
+  console.error(
+    "🔒 REACT_APP_ID_SECRET is not defined! Encryption will fail."
+  );
+}
 
 export default function Tickets() {
   const [tickets, setTickets] = useState([]);
@@ -228,7 +235,6 @@ export default function Tickets() {
 
       const filtered = allTickets.filter((ticket) => {
         const ticketDate = new Date(ticket.created_at);
-      
 
         return ticketDate >= from && ticketDate <= to;
       });
@@ -305,6 +311,16 @@ export default function Tickets() {
     )
       return "text-danger";
     return "text-secondary";
+  };
+  // const makeToken = (id) =>
+  //   encodeURIComponent(CryptoJS.AES.encrypt(id.toString(), SECRET_KEY).toString());
+  const makeToken = (id) => {
+    if (!SECRET_KEY) {
+      throw new Error("Encryption secret (REACT_APP_ID_SECRET) is not defined.");
+    }
+    return encodeURIComponent(
+      CryptoJS.AES.encrypt(id.toString(), SECRET_KEY).toString()
+    );
   };
 
   return (
@@ -408,8 +424,7 @@ export default function Tickets() {
               <th className="w-20">
                 <FontAwesomeIcon icon={faInfoCircle} /> Status
               </th>
-             
-         
+
               {/* <th>
                 <FontAwesomeIcon icon={faClock} /> Updated At
               </th> */}
@@ -426,10 +441,12 @@ export default function Tickets() {
               ))
             ) : filteredTickets.length > 0 ? (
               filteredTickets.map((ticket) => (
+             
+              
                 <tr key={ticket.ticket_id} className="text-center">
                   <td className="text-start">
                     <Link
-                      to={`/agent/components/Userconversation?user_id=${ticket.User_id}`}
+                      to={`/agent/components/Userconversation?token=${makeToken(ticket.User_id)}`}
                       className={`text-decoration-none fw-bold ${getTextColorClass(
                         ticket.status
                       )}`}
@@ -454,20 +471,19 @@ export default function Tickets() {
                         <div>
                           {new Date(ticket.created_at).toLocaleDateString(
                             "en-GB"
-                          )}&nbsp;&nbsp;&nbsp;
-                           {new Date(ticket.created_at).toLocaleTimeString([], {
+                          )}
+                          &nbsp;&nbsp;&nbsp;
+                          {new Date(ticket.created_at).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                        
-                         
                         </div>
                       </>
                     ) : (
                       "N/A"
                     )}
                   </td>
-                  <td className="text-start">
+                  <td className="text-start text-wrap text-break">
                     {ticket.agent_remarks ?? "No Remark"}
                   </td>
                   <td className="text-start">
@@ -487,8 +503,7 @@ export default function Tickets() {
                       {getStatusDescription(ticket.status)}
                     </span>
                   </td>
-                
-                 
+
                   {/* <td className="text-start">
           {ticket.updated_at ? (
             <>
