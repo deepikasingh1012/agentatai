@@ -39,13 +39,17 @@ const UserConversation = () => {
   const [remarkError, setRemarkError] = useState("");
   const [statusError, setStatusError] = useState("");
   const [followUpError, setFollowUpError] = useState("");
+  const [originalStatusCode, setOriginalStatusCode] = useState(null);
 
-    const queryParams = new URLSearchParams(useLocation().search);
+  const queryParams = new URLSearchParams(useLocation().search);
   const token = queryParams.get("token");
   // decrypt it to get the real userId
   let decryptedUserId;
   try {
-    const bytes = CryptoJS.AES.decrypt(decodeURIComponent(token || ""), SECRET_KEY);
+    const bytes = CryptoJS.AES.decrypt(
+      decodeURIComponent(token || ""),
+      SECRET_KEY
+    );
     decryptedUserId = bytes.toString(CryptoJS.enc.Utf8);
   } catch {
     decryptedUserId = null;
@@ -56,8 +60,7 @@ const UserConversation = () => {
   // const userId = queryParams.get("user_id");
   // console.log("🧾 Extracted userId:", userId);
 
-   console.log("🧾 Decrypted userId:", decryptedUserId);
- 
+  console.log("🧾 Decrypted userId:", decryptedUserId);
 
   const statusOptions = [
     { code: "OPN", label: "Open" },
@@ -100,7 +103,9 @@ const UserConversation = () => {
 
       // const inquiryData = inquiries?.data?.[0];
       const inquiryData = Array.isArray(inquiries.data)
-             ? inquiries.data.find((item) => String(item.User_id) === String(decryptedUserId))
+        ? inquiries.data.find(
+            (item) => String(item.User_id) === String(decryptedUserId)
+          )
         : null;
 
       if (!inquiryData) {
@@ -169,6 +174,7 @@ const UserConversation = () => {
         }
         console.log("inquiryData", inquiryData);
         setInquiry(mergedData);
+        setOriginalStatusCode(mergedData.status_code);
         console.log("mergedData", mergedData);
 
         // 💡 Reset form fields on every ticket load
@@ -227,8 +233,10 @@ const UserConversation = () => {
   };
 
   // helper to tell if this ticket is already closed
-const isTicketClosed = () => status === "CRS" || status === "CNR";
+  const isTicketClosed = () => status === "CRS" || status === "CNR";
 
+  const isOriginallyClosed = () =>
+    originalStatusCode === "CRS" || originalStatusCode === "CNR";
 
   const handleDateClick = (date) => {
     setFollowUpDate(date); // Store the selected date in state
@@ -360,7 +368,7 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
       </button>
 
       <h4 className="mb-4">
-       <FaClipboardList className="me-2" />
+        <FaClipboardList className="me-2" />
         Details of Ticket ID: {`CBR-${decryptedUserId || "unknown"}`}
       </h4>
 
@@ -485,12 +493,12 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
         </div>
 
         <div className="col-6">
-  
-  {isTicketClosed() && (
-    <div className="alert alert-warning">
-      This ticket is closed; updates are disabled.
-    </div>
-  )}
+          {isOriginallyClosed() && (
+            <div className="alert alert-warning">
+              This ticket was already closed ,updates are
+              disabled.
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <label className="form-label">
@@ -507,7 +515,7 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
                   setAgentRemarks(capitalized);
                 }}
                 placeholder="Enter your remark"
-                disabled={isTicketClosed()}
+                disabled={isOriginallyClosed()}
               />
               {remarkError && (
                 <div className="text-danger mt-1">{remarkError}</div>
@@ -529,7 +537,7 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
                   className="form-select"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  disabled={isTicketClosed() || isFollowUpLocked()}
+                  disabled={isOriginallyClosed() || isFollowUpLocked()}
                 >
                   <option value="">Select a status</option>
                   {statusOptions.map((option) => (
@@ -560,7 +568,11 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
                 placeholder="Select follow-up date"
                 value={followUpDate}
                 onChange={(e) => setFollowUpDate(e.target.value)}
-                disabled={isTicketClosed() || isFollowUpLocked() || isFollowUpDisabled()}
+                disabled={
+                  isOriginallyClosed() ||
+                  isFollowUpLocked() ||
+                  isFollowUpDisabled()
+                }
                 onClick={
                   !(isFollowUpLocked() || isFollowUpDisabled())
                     ? handleDateClick
@@ -579,7 +591,11 @@ const isTicketClosed = () => status === "CRS" || status === "CNR";
               )}
             </div>
 
-            <button type="submit" className="btn btn-success w-100" disabled={isTicketClosed()}>
+            <button
+              type="submit"
+              className="btn btn-success w-100"
+              disabled={isOriginallyClosed()}
+            >
               Submit
             </button>
             {error && (
