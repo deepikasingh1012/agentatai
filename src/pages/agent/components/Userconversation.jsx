@@ -11,8 +11,9 @@ import {
   FaComment,
   FaUser,
   FaEnvelope,
-  FaPhone,
+  FaPhoneAlt,
   FaClock,
+  FaComments,
   FaCalendarAlt,
   FaExclamationTriangle,
 } from "react-icons/fa";
@@ -63,7 +64,7 @@ const UserConversation = () => {
   console.log("🧾 Decrypted userId:", decryptedUserId);
 
   const statusOptions = [
-    { code: "OPN", label: "Open" },
+    // { code: "OPN", label: "Open" },
     {
       code: "INP",
       label: "In Progress, communication is going on with client.",
@@ -253,6 +254,11 @@ const UserConversation = () => {
     setFollowUpError("");
 
     let isValid = true;
+    if (status === "OPN") {
+      setStatusError("Please select a status.");
+      setLoading(false);
+      return;
+    }
 
     if (!agentRemarks.trim()) {
       setRemarkError("Remark is required.");
@@ -383,8 +389,9 @@ const UserConversation = () => {
                 <FaEnvelope className="me-1" /> Email
               </th>
               <th className="text-start">
-                <FaPhone className="me-1" /> Contact
+                <FaPhoneAlt className="me-1" /> Contact
               </th>
+
               {/* <th>
                 <FontAwesomeIcon icon={faClock} /> Created At
               </th>*/}
@@ -392,7 +399,7 @@ const UserConversation = () => {
                 <FontAwesomeIcon icon={faClock} /> Ticket Updated Date
               </th>
               <th className="text-start">
-                <FaClock className="me-1" /> Conversation Duration
+                <FaComments className="me-1" /> Conversation Duration
               </th>
             </tr>
           </thead>
@@ -462,7 +469,7 @@ const UserConversation = () => {
           <table className="table table-bordered h-100 mt-3">
             <thead>
               <tr>
-                <th>
+                <th >
                   Last Response from "
                   {inquiry?.Client_name
                     ? inquiry.Client_name.charAt(0).toUpperCase() +
@@ -475,7 +482,7 @@ const UserConversation = () => {
             <tbody>
               {inquiry && inquiry.last_question ? (
                 <tr>
-                  <td className="text-black">
+                  <td  className="text-black">
                     <strong>Last Response :</strong>{" "}
                     {inquiry.last_question.text}
                   </td>
@@ -495,8 +502,7 @@ const UserConversation = () => {
         <div className="col-6">
           {isOriginallyClosed() && (
             <div className="alert alert-warning">
-              This ticket was already closed ,updates are
-              disabled.
+              This ticket was already closed ,updates are disabled.
             </div>
           )}
           <form onSubmit={handleSubmit}>

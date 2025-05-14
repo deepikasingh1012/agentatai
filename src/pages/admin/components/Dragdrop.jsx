@@ -19,6 +19,7 @@ const processAPIData = (data, level = 1, parentLevel = null) => {
       options: (row.children || []).map((option) => ({
         id: `option-${option.id}`,
         content: option.question_text,
+        p_question_type: option.question_type || 1, // ✅ Add this line
       })),
       
       
@@ -72,91 +73,163 @@ useEffect(() => {
   
 
 
-
  
-  
-  const onDragEnd = (result) => {
-    if (!result.destination) return; // Ignore invalid drops
+//   const onDragEnd = (result) => {
+//     if (!result.destination) return; // Ignore invalid drops
 
-    console.log("Drag result:", result);
-    const { source, destination, type } = result;
-    let newData = [...data];
+//     console.log("Drag result:", result);
+//     const { source, destination, type } = result;
+//     let newData = [...data];
 
-    if (type === "OPTION") {
-        const sourceIndex = newData.findIndex((group) => group.id === source.droppableId);
-        const destinationIndex = newData.findIndex((group) => group.id === destination.droppableId);
+//     if (type === "OPTION") {
+//         const sourceIndex = newData.findIndex((group) => group.id === source.droppableId);
+//         const destinationIndex = newData.findIndex((group) => group.id === destination.droppableId);
 
-        if (sourceIndex === -1 || destinationIndex === -1) return;
+//         if (sourceIndex === -1 || destinationIndex === -1) return;
 
-        let sourceOptions = [...newData[sourceIndex].options];
-        let destinationOptions = [...newData[destinationIndex].options];
+//         let sourceOptions = [...newData[sourceIndex].options];
+//         let destinationOptions = [...newData[destinationIndex].options];
 
-        // ✅ Get the dragged option (movedItem)
-        const [movedItem] = sourceOptions.splice(source.index, 1);
-        if (!movedItem) return;
+//         // ✅ Get the dragged option (movedItem)
+//         const [movedItem] = sourceOptions.splice(source.index, 1);
+//         if (!movedItem) return;
 
-        console.log("✅ Moved Item BEFORE Drop:", movedItem);
+//         console.log("✅ Moved Item BEFORE Drop:", movedItem);
 
-        // ✅ Get the original item data
-        const originalItem = data.flatMap(q => q.options).find(opt => opt.id === movedItem.id) || {};
-        movedItem.p_id = originalItem.p_id || parseInt(movedItem.id.replace("option-", ""), 10);
-        movedItem.p_question_text = originalItem.p_question_text || movedItem.content || "[No Question Text]";
-        movedItem.p_question_level = originalItem.p_question_level || newData[destinationIndex].level;
-        movedItem.p_question_parent_level = newData[destinationIndex].level; // ✅ Correct Parent Level
+//         // ✅ Get the original item data
+//         const originalItem = data.flatMap(q => q.options).find(opt => opt.id === movedItem.id) || {};
+//         movedItem.p_id = originalItem.p_id || parseInt(movedItem.id.replace("option-", ""), 10);
+//         movedItem.p_question_text = originalItem.p_question_text || movedItem.content || "[No Question Text]";
+//         movedItem.p_question_level = originalItem.p_question_level || newData[destinationIndex].level;
+//         movedItem.p_question_parent_level = newData[destinationIndex].level; // ✅ Correct Parent Level
 
-        // ✅ Identify the original parent dynamically
-        const originalParentData = newData.find(q => q.options.some(opt => opt.id === movedItem.id));
-        const originalParent = originalParentData ? originalParentData.message.trim().toLowerCase() : null;
-        const destinationParent = newData[destinationIndex].message.trim().toLowerCase();
+//         // ✅ Identify the original parent dynamically
+//         const originalParentData = newData.find(q => q.options.some(opt => opt.id === movedItem.id));
+//         const originalParent = originalParentData ? originalParentData.message.trim().toLowerCase() : null;
+//         const destinationParent = newData[destinationIndex].message.trim().toLowerCase();
 
-        // ❌ *Validation 1: Prevent drop if option text matches question text*
-        if (movedItem.content.trim().toLowerCase() === destinationParent) {
-          setAlertMessage(` Cannot move "${movedItem.content}" under "${destinationParent}" as it is the same position.`);
-            return;
-        }
+//         // ❌ *Validation 1: Prevent drop if option text matches question text*
+//         if (movedItem.content.trim().toLowerCase() === destinationParent) {
+//           setAlertMessage(` Cannot move "${movedItem.content}" under "${destinationParent}" as it is the same position.`);
+//             return;
+//         }
 
-        // ❌ *Validation 3: Recursive Check to Prevent Circular Dependency*
-        const checkCircularDependency = (parentText, childText) => {
-            let queue = [parentText]; // Start checking from the current parent
-            while (queue.length) {
-                let currentParent = queue.shift();
-                for (let q of newData) {
-                    if (q.message.trim().toLowerCase() === currentParent.trim().toLowerCase()) {
-                        let childOptions = q.options.map(opt => opt.content.trim().toLowerCase());
-                        if (childOptions.includes(childText.trim().toLowerCase())) {
-                            return true; // Found circular dependency
-                        }
-                        queue.push(...childOptions); // Add children to check deeper levels
-                    }
-                }
-            }
-            return false;
-        };
+//         // ❌ *Validation 3: Recursive Check to Prevent Circular Dependency*
+//         const checkCircularDependency = (parentText, childText) => {
+//             let queue = [parentText]; // Start checking from the current parent
+//             while (queue.length) {
+//                 let currentParent = queue.shift();
+//                 for (let q of newData) {
+//                     if (q.message.trim().toLowerCase() === currentParent.trim().toLowerCase()) {
+//                         let childOptions = q.options.map(opt => opt.content.trim().toLowerCase());
+//                         if (childOptions.includes(childText.trim().toLowerCase())) {
+//                             return true; // Found circular dependency
+//                         }
+//                         queue.push(...childOptions); // Add children to check deeper levels
+//                     }
+//                 }
+//             }
+//             return false;
+//         };
 
-        if (checkCircularDependency(movedItem.p_question_text, destinationParent)) {
-          setAlertMessage(`Cannot move "${movedItem.content}" under "${destinationParent}" due to circular dependency.`);
+//         if (checkCircularDependency(movedItem.p_question_text, destinationParent)) {
+//           setAlertMessage(`Cannot move "${movedItem.content}" under "${destinationParent}" due to circular dependency.`);
 
          
-          return;
-      }
+//           return;
+//       }
 
-        // ✅ *Allow move only if it does NOT create a circular dependency*
-        destinationOptions.splice(destination.index, 0, movedItem);
-        newData[sourceIndex].options = sourceOptions;
-        newData[destinationIndex].options = destinationOptions;
+//         // ✅ *Allow move only if it does NOT create a circular dependency*
+//         destinationOptions.splice(destination.index, 0, movedItem);
+//         newData[sourceIndex].options = sourceOptions;
+//         newData[destinationIndex].options = destinationOptions;
 
-        console.log("✅ Updated Data:", newData);
-        setData(newData);
+//         console.log("✅ Updated Data:", newData);
+//         setData(newData);
 
-        // ✅ Track changes for API update
-        const newModifiedData = new Map(modifiedData);
-        newModifiedData.set(movedItem.p_id, { ...originalItem, ...movedItem });
+//         // ✅ Track changes for API update
+//         const newModifiedData = new Map(modifiedData);
+//         newModifiedData.set(movedItem.p_id, { ...originalItem, ...movedItem });
 
-        console.log("✅ Updated Modified Data for API:", newModifiedData);
-        setModifiedData(newModifiedData);
-    }
-};
+//         console.log("✅ Updated Modified Data for API:", newModifiedData);
+//         setModifiedData(newModifiedData);
+//     }
+// };
   
+const onDragEnd = (result) => {
+  if (!result.destination) return;
+
+  const { source, destination, type } = result;
+  let newData = [...data];
+
+  if (type === "OPTION") {
+    const sourceIndex = newData.findIndex((group) => group.id === source.droppableId);
+    const destinationIndex = newData.findIndex((group) => group.id === destination.droppableId);
+
+    if (sourceIndex === -1 || destinationIndex === -1) return;
+
+    let sourceOptions = [...newData[sourceIndex].options];
+    let destinationOptions = [...newData[destinationIndex].options];
+
+    const [movedItem] = sourceOptions.splice(source.index, 1);
+    if (!movedItem) return;
+
+    // Get original item (for ID and text fallback)
+    const originalItem = data.flatMap(q => q.options).find(opt => opt.id === movedItem.id) || {};
+    movedItem.p_id = originalItem.p_id || parseInt(movedItem.id.replace("option-", ""), 10);
+    movedItem.p_question_text = originalItem.p_question_text || movedItem.content || "[No Question Text]";
+
+    // ✅ NEW LEVEL +1 of the new parent
+    const newParentLevel = newData[destinationIndex].level;
+    movedItem.p_question_level = newParentLevel + 1;
+    movedItem.p_question_parent_level = newParentLevel;
+
+    // ❌ Prevent drop if same as parent
+    const destinationParent = newData[destinationIndex].message.trim().toLowerCase();
+    if (movedItem.content.trim().toLowerCase() === destinationParent) {
+      setAlertMessage(` Cannot move "${movedItem.content}" under "${destinationParent}" as it is the same position.`);
+      return;
+    }
+
+    // ❌ Prevent circular dependency
+    const checkCircularDependency = (parentText, childText) => {
+      let queue = [parentText];
+      while (queue.length) {
+        let currentParent = queue.shift();
+        for (let q of newData) {
+          if (q.message.trim().toLowerCase() === currentParent.trim().toLowerCase()) {
+            let childOptions = q.options.map(opt => opt.content.trim().toLowerCase());
+            if (childOptions.includes(childText.trim().toLowerCase())) {
+              return true;
+            }
+            queue.push(...childOptions);
+          }
+        }
+      }
+      return false;
+    };
+
+    if (checkCircularDependency(movedItem.p_question_text, destinationParent)) {
+      setAlertMessage(`Cannot move "${movedItem.content}" under "${destinationParent}" due to circular dependency.`);
+      return;
+    }
+
+    destinationOptions.splice(destination.index, 0, movedItem);
+    newData[sourceIndex].options = sourceOptions;
+    newData[destinationIndex].options = destinationOptions;
+
+    setData(newData);
+
+    const newModifiedData = new Map(modifiedData);
+    newModifiedData.set(movedItem.p_id, {
+      ...originalItem,
+      ...movedItem,
+    });
+
+    setModifiedData(newModifiedData);
+  }
+};
+
   
 
   const handleSaveChanges = async () => {

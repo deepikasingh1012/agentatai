@@ -13,7 +13,7 @@ const OtherQueryInput = ({ handleQuerySubmit, isQueryInputDisabled }) => {
     };
 
     return (
-        <div className="d-flex align-items-center mt-2 gap-2 w-100">
+        <div className="d-flex align-items-center mt-1 gap-1 w-100">
             <input
                 type="text"
                 className="form-control"

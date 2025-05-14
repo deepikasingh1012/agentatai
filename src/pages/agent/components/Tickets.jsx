@@ -18,11 +18,9 @@ import {
 } from "../../../services/AgentServices";
 import { useOutletContext } from "react-router-dom";
 import CryptoJS from "crypto-js";
- const SECRET_KEY = process.env.REACT_APP_ID_SECRET;
- if (!SECRET_KEY) {
-  console.error(
-    "🔒 REACT_APP_ID_SECRET is not defined! Encryption will fail."
-  );
+const SECRET_KEY = process.env.REACT_APP_ID_SECRET;
+if (!SECRET_KEY) {
+  console.error("🔒 REACT_APP_ID_SECRET is not defined! Encryption will fail.");
 }
 
 export default function Tickets() {
@@ -30,8 +28,9 @@ export default function Tickets() {
   const [loading, setLoading] = useState(true);
   const [ticketData, setTicketData] = useState({
     ticket_count: 0,
-    Opened: 0,
-    Closed: 0,
+    Open: 0,
+    Resolved: 0,
+    Noresponse: 0,
     Inprogress: 0,
   });
   const [filterStatus, setFilterStatus] = useState("All");
@@ -48,8 +47,9 @@ export default function Tickets() {
   const navigate = useNavigate();
 
   const statusKeywords = {
-    Open: ["OPN"],
-    Closed: ["CRS", "CNR"],
+    Open: ["open", "OPN"],
+  Resolved: ["resolved", "CRS"],
+  "No-Response": [" response", "CNR"],
     "In-Progress": ["INP"],
   };
 
@@ -58,11 +58,11 @@ export default function Tickets() {
       case "OPN":
         return "Open";
       case "INP":
-        return "In Progress";
+        return "In-Progress";
       case "CRS":
-        return "Resolved, Closed";
+        return "Resolved";
       case "CNR":
-        return "No Response, Closed";
+        return "No-Response";
       default:
         return code || "Unknown";
     }
@@ -71,7 +71,8 @@ export default function Tickets() {
   const statusIcons = {
     All: <FaListAlt />,
     Open: <FaInbox />,
-    Closed: <FaCheckCircle />,
+    Resolved: <FaCheckCircle />,
+     "No-Response": <FaCheckCircle />,
     "In-Progress": <FaSpinner />,
   };
 
@@ -82,7 +83,7 @@ export default function Tickets() {
     if (location.state?.filterFromDashboard) {
       const statusFromDashboard = location.state.filterFromDashboard;
       if (
-        ["All", "Open", "Closed", "In-Progress"].includes(statusFromDashboard)
+        ["All", "Open", "Resolved", "No-Response","In-Progress"].includes(statusFromDashboard)
       ) {
         setFilterStatus(statusFromDashboard);
       }
@@ -106,28 +107,33 @@ export default function Tickets() {
         Math.ceil(inquiriesResponse.total_records / ticketsPerPage)
       );
 
-      const statusCount = { Opened: 0, Closed: 0, Inprogress: 0 };
-      inquiryStatusCount.data.forEach((status) => {
-        switch (status.status) {
-          case "OPN":
-            statusCount.Opened = status.status_count;
-            break;
-          case "CNR":
-          case "CRS":
-            statusCount.Closed += status.status_count;
-            break;
-          case "INP":
-            statusCount.Inprogress = status.status_count;
-            break;
-          default:
-            break;
-        }
-      });
+     const statusCount = { Open: 0, Resolved: 0, Noresponse: 0, Inprogress: 0 };
+
+inquiryStatusCount.data.forEach((status) => {
+  switch (status.status) {
+    case "OPN":
+      statusCount.Open = status.status_count;
+      break;
+    case "CRS":
+      statusCount.Resolved = status.status_count;
+      break;
+    case "CNR":
+      statusCount.Noresponse = status.status_count;
+      break;
+    case "INP":
+      statusCount.Inprogress = status.status_count;
+      break;
+    default:
+      break;
+  }
+});
+
 
       setTicketData({
         ticket_count: inquiryStatusCount.total_count,
-        Opened: statusCount.Opened,
-        Closed: statusCount.Closed,
+        Open: statusCount.Open,
+        Resolved: statusCount.Resolved,
+        Noresponse: statusCount.Noresponse,
         Inprogress: statusCount.Inprogress,
       });
     } catch (error) {
@@ -276,47 +282,38 @@ export default function Tickets() {
     : [];
 
   const getBadgeClass = (statuses) => {
-    const status = statuses?.toLowerCase() || "";
-    if (status.includes("open") || status === "opn") return "badge bg-success";
-    else if (status.includes("assigned")) return "badge bg-info";
-    else if (
-      status.includes("closed") ||
-      status.includes("resolved") ||
-      status.includes("response") ||
-      status === "cnr" ||
-      status === "crs"
-    )
-      return "badge bg-danger";
-    else if (status.includes("in progress") || status === "inp")
-      return "badge bg-warning";
-    else return "badge bg-secondary";
-  };
+  const status = statuses?.toLowerCase() || "";
+  if (status.includes("open") || status === "opn") return "badge bg-success";
+  // else if (status.includes("assigned")) return "badge bg-info";
+  else if (status.includes("resolved") || status === "crs") return "badge bg-danger";
+  else if (status.includes("no response") || status === "cnr") return "badge bg-danger";
+  else if (status.includes("in progress") || status === "inp")return "badge bg-warning";
+  else return "badge bg-secondary";
+};
 
-  const getButtonColor = (status) => {
-    if (status === "Open") return "bg-success";
-    if (status === "Closed") return "bg-danger";
-    if (status === "In-Progress") return "bg-warning";
-    return "bg-secondary";
-  };
+ const getButtonColor = (status) => {
+  if (status === "Open") return "bg-success";
+  if (status === "Resolved") return "bg-danger";
+  if (status === "No-Response") return "bg-danger";
+  if (status === "In-Progress") return "bg-warning";
+  return "bg-secondary";
+};
+
   const getTextColorClass = (status) => {
-    const s = (status || "").toLowerCase();
-    if (s.includes("open") || s === "opn") return "text-success";
-    if (s.includes("in progress") || s === "inp") return "text-warning";
-    if (
-      s.includes("closed") ||
-      s.includes("resolved") ||
-      s.includes("response") ||
-      s === "crs" ||
-      s === "cnr"
-    )
-      return "text-danger";
-    return "text-secondary";
-  };
+  const s = (status || "").toLowerCase();
+  if (s.includes("open") || s === "opn") return "text-success";
+  if (s.includes("in progress") || s === "inp") return "text-warning";
+   if (s.includes("resolved") || s === "crs") return "text-danger";
+    if (s.includes("open") || s === "cnr") return "text-danger";
+  return "text-secondary";
+};
   // const makeToken = (id) =>
   //   encodeURIComponent(CryptoJS.AES.encrypt(id.toString(), SECRET_KEY).toString());
   const makeToken = (id) => {
     if (!SECRET_KEY) {
-      throw new Error("Encryption secret (REACT_APP_ID_SECRET) is not defined.");
+      throw new Error(
+        "Encryption secret (REACT_APP_ID_SECRET) is not defined."
+      );
     }
     return encodeURIComponent(
       CryptoJS.AES.encrypt(id.toString(), SECRET_KEY).toString()
@@ -326,11 +323,12 @@ export default function Tickets() {
   return (
     <div className="container mt-4">
       <div className="row g-2 justify-content-center mb-5">
-        {["All", "Open", "Closed", "In-Progress"].map((status) => {
+        {["All", "Open", "Resolved","No-Response", "In-Progress"].map((status) => {
           let count = 0;
           if (status === "All") count = ticketData.ticket_count;
-          else if (status === "Open") count = ticketData.Opened;
-          else if (status === "Closed") count = ticketData.Closed;
+          else if (status === "Open") count = ticketData.Open;
+          else if (status === "Resolved") count = ticketData.Resolved;
+            else if (status === "No-Response") count = ticketData.Noresponse;
           else if (status === "In-Progress") count = ticketData.Inprogress;
           return (
             <div key={status} className="col-6 col-md-auto d-flex">
@@ -421,9 +419,11 @@ export default function Tickets() {
               <th className="w-20">
                 <FontAwesomeIcon icon={faStarSolid} /> Follow-Up Date
               </th>
-              <th className="w-20">
-                <FontAwesomeIcon icon={faInfoCircle} /> Status
-              </th>
+              {(!filterStatus || filterStatus === "All") && (
+                <th className="w-20">
+                  <FontAwesomeIcon icon={faInfoCircle} /> Status
+                </th>
+              )}
 
               {/* <th>
                 <FontAwesomeIcon icon={faClock} /> Updated At
@@ -441,12 +441,12 @@ export default function Tickets() {
               ))
             ) : filteredTickets.length > 0 ? (
               filteredTickets.map((ticket) => (
-             
-              
                 <tr key={ticket.ticket_id} className="text-center">
                   <td className="text-start">
                     <Link
-                      to={`/agent/components/Userconversation?token=${makeToken(ticket.User_id)}`}
+                      to={`/agent/components/Userconversation?token=${makeToken(
+                        ticket.User_id
+                      )}`}
                       className={`text-decoration-none fw-bold ${getTextColorClass(
                         ticket.status
                       )}`}
@@ -493,16 +493,18 @@ export default function Tickets() {
                         )
                       : "No Follow-Up"}
                   </td>
-                  <td className="text-start">
-                    <span
-                      className={`badge ${getBadgeClass(
-                        ticket.status
-                      )} text-light d-flex align-items-center justify-content-center w-auto`}
-                      style={{ width: "120px", height: "30px" }}
-                    >
-                      {getStatusDescription(ticket.status)}
-                    </span>
-                  </td>
+                  {(!filterStatus || filterStatus === "All") && (
+                    <td className="text-start">
+                      <span
+                        className={`badge ${getBadgeClass(
+                          ticket.status
+                        )} text-light d-flex align-items-center justify-content-center w-auto`}
+                        style={{ width: "120px", height: "30px" }}
+                      >
+                        {getStatusDescription(ticket.status)}
+                      </span>
+                    </td>
+                  )}
 
                   {/* <td className="text-start">
           {ticket.updated_at ? (

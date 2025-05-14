@@ -6,7 +6,7 @@ export default function Setup() {
   const [options, setOptions] = useState([{ type: "text", label: "", link: "" }]);
   const [error, setError] = useState("");
   const [dragDropQuestions, setDragDropQuestions] = useState([]);
-
+ 
   const [modal, setModal] = useState({ show: false, message: "", isError: false });
 
   const clientId = localStorage.getItem("clientId");
@@ -60,7 +60,17 @@ export default function Setup() {
       .join(" ");
   };
 
-  const addOption = () => setOptions([...options, { type: "text", label: "", link: "" }]);
+  // const addOption = () => setOptions([...options, { type: "text", label: "", link: "" }]);
+
+  const addOption = () => {
+    if (options.length >= 3) {
+      setError("You can only add 3 questions at a time.");
+      return;
+    }
+    setOptions([...options, { type: "text", label: "", link: "" }]);
+    setError("");  // Clear error if within limit
+  };
+  
 
   const removeOption = (index) => setOptions(options.filter((_, i) => i !== index));
 
@@ -105,76 +115,74 @@ export default function Setup() {
 
 
 
+
   const handleSubmit = async () => {
     if (options.some((opt) => !opt.label.trim())) {
-      alert("Please enter a valid question for all options!");
+      alert("Please enter a valid question label for all options!");
       return;
     }
+     
+     // Check if the number of options exceeds the limit (3)
+  if (options.length > 3) {
+    setModal({ show: true, message: "only 3 questions can be submitted at a time.", isError: true });
+    return;
+  }
 
     const clientId = Number(localStorage.getItem("clientId")) || 1;
     console.log("Fetching questions for client_id:", clientId);
-
+  
     try {
       const fetchedData = await fetchQuestions(clientId);
       console.log("API Response for Questions:", fetchedData);
-
+  
       const existingQuestions = fetchedData?.questions || [];
       let p_question_level = 1;
       let p_question_parent_level = 1;
-
-      // If no questions exist for the client, set the first question's parent level to 0
       const isFirstQuestion = existingQuestions.length === 0;
-
-      // ✅ Loop through all options to send each as a separate question
+  
       for (let index = 0; index < options.length; index++) {
         const option = options[index];
-
-        // If it's the first question and no existing questions, set parent level to 0
-        p_question_parent_level = isFirstQuestion && index === 0 ? 0 : 1; // Only the first question for a client gets parent level 0
-
-        let selectedOption = option.type || "text";
+  
+        // Parent level logic
+        p_question_parent_level = isFirstQuestion && index === 0 ? 0 : 1;
+  
         let p_question_type = 1; // Default to text
         let p_question_label = "";
-
-        if (selectedOption === "link" && option.link) {
-          p_question_label = option.link;
+  
+        if (option.type === "link" && option.link) {
           p_question_type = getQuestionTypeFromLink(option.link);
+          p_question_label = option.link;
+        } else if (option.type === "other") {
+          p_question_type = 1; // treat as text or customize as needed
+          p_question_label = option.label;
         } else {
-          const questionTypeMapping = {
-            text: 1,
-            file: 2,
-            redirect: 3,
-            video: 4,
-            image: 5,
-            link: 6,
-          };
-          p_question_type = questionTypeMapping[selectedOption] || 1;
+          p_question_type = 1;
         }
-
+  
         const newQuestion = {
           action_type: "I",
           p_question_text: option.label.trim(),
-          p_question_label,
+          p_question_label: p_question_label,
           p_question_type,
           p_client_id: clientId,
           p_question_level,
           p_question_parent_level,
         };
-
+  
         console.log("Submitting Question:", newQuestion);
         await sendQuestionsToAPI(newQuestion);
       }
-
+  
       setModal({ show: true, message: "All questions submitted successfully!", isError: false });
-      setOptions([{ type: "text", label: "", link: "" }]); // Reset input field
-      loadQuestions(); // Reload questions
-
+      setOptions([{ type: "text", label: "", link: "" }]);
+      loadQuestions();
+  
     } catch (error) {
       console.error("❌ Error sending question:", error.response?.data || error.message);
-      setModal({ show: true, message: "Failed to submit the questions.", isError: true });
+      setModal({ show: true, message: " only 3 questions can be submitted at a time.", isError: true });
     }
   };
-
+  
 
 
 
@@ -264,7 +272,8 @@ export default function Setup() {
       ))}
 
 
-      {error && <p className="text-danger">{error}</p>}
+      {/* {error && <p className="text-danger">{error}</p>} */}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="text-center my-3">
         <button onClick={handleSubmit} className="btn btn-primary px-5">Submit</button>

@@ -92,13 +92,13 @@ const UserInputContainer = ({ currentInputStep, handleUserDetailsSubmit, details
     };
 
     return (
-        <div className="p-3">
+        <div className="p-2">
             {currentInputStep === "details" && (
                 <form onSubmit={handleSubmit} noValidate>
                     {/* Name Input */}
-                    <div className="mb-3">
-                        <label className="form-label">Name*</label>
-                        <div className="input-group shadow-sm rounded">
+                    <div className="mb-2">
+                        <label className="form-label small">Name*</label>
+                        <div className="input-group input-group-sm  rounded">
                             <span className="input-group-text bg-white border-end-0">
                                 <FaUser className="text-primary" />
                             </span>
@@ -112,17 +112,17 @@ const UserInputContainer = ({ currentInputStep, handleUserDetailsSubmit, details
                             />
                         </div>
                         {errors.userName && (
-                            <div className="alert alert-warning d-flex align-items-center mt-2 p-2" role="alert">
-                                <FaExclamationTriangle className="me-2" />
-                                {errors.userName}
+                            <div className="alert alert-warning d-flex align-items-center mt-1 p-1" role="alert">
+                                <FaExclamationTriangle className="me-1" />
+                                <span className="small">{errors.userName}</span>
                             </div>
                         )}
                     </div>
 
                     {/* Mobile Number Input */}
-                    <div className="mb-3">
-                        <label className="form-label">Mobile Number*</label>
-                        <div className="input-group shadow-sm rounded">
+                    <div className="mb-2">
+                        <label className="form-label small">Mobile Number*</label>
+                        <div className="input-group input-group-sm shadow-sm rounded">
                             <span className="input-group-text bg-white border-end-0">
                                 <FaPhone className="text-primary" />
                             </span>
@@ -136,16 +136,16 @@ const UserInputContainer = ({ currentInputStep, handleUserDetailsSubmit, details
                         </div>
                         {errors.userContact && (
                             <div className="alert alert-warning d-flex align-items-center mt-2 p-2" role="alert">
-                                <FaExclamationTriangle className="me-2" />
-                                {errors.userContact}
+                                <FaExclamationTriangle className="me-1" />
+                                <span className="small">{errors.userContact}</span>
                             </div>
                         )}
                     </div>
 
                     {/* Email Input */}
-                    <div className="mb-3">
-                        <label className="form-label">Email ID*</label>
-                        <div className="input-group shadow-sm rounded">
+                    <div className="mb-2">
+                        <label className="form-label small">Email ID*</label>
+                        <div className="input-group input-group-sm  shadow-sm rounded">
                             <span className="input-group-text bg-white border-end-0">
                                 <FaEnvelope className="text-primary" />
                             </span>
@@ -158,14 +158,14 @@ const UserInputContainer = ({ currentInputStep, handleUserDetailsSubmit, details
                             />
                         </div>
                         {errors.userEmail && (
-                            <div className="alert alert-warning d-flex align-items-center mt-2 p-2" role="alert">
-                                <FaExclamationTriangle className="me-2" />
-                                {errors.userEmail}
+                            <div className="alert alert-warning d-flex align-items-center mt-1 p-1" role="alert">
+                                <FaExclamationTriangle className="me-1" />
+                                <span className="small">{errors.userContact}</span>
                             </div>
                         )}
                     </div>
 
-                    <button type="submit" className="btn btn-primary w-100 mt-2" disabled={detailsSubmitted}>
+                    <button type="submit" className="btn btn-primary w-100 mt-1" disabled={detailsSubmitted}>
                         Click to Proceed
                     </button>
                 </form>

@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const StarRating = ({ handleReviewSubmit, isRatingDisabled }) => {
+const StarRating = ({ handleReviewSubmit, isRatingDisabled, userRating }) => {
     const [selectedRating, setSelectedRating] = useState(0);
+
+
+
+    // 🔁 Sync selectedRating with userRating reset (null or 0)
+    useEffect(() => {
+        if (!userRating) {
+            setSelectedRating(0);
+        }
+    }, [userRating]);
 
     const handleClick = (rating) => {
         if (!isRatingDisabled) {
@@ -11,12 +20,12 @@ const StarRating = ({ handleReviewSubmit, isRatingDisabled }) => {
     };
 
     return (
-        <div className="d-flex gap-2 mt-3 justify-content-center">
+        <div className="d-flex gap-1 mt-1 justify-content-center">
             {[1, 2, 3, 4, 5].map((star) => (
                 <i
                     key={star}
                     className={`fa-star ${star <= selectedRating ? 'fas text-warning' : 'far text-muted'}`}
-                    style={{ fontSize: '1.5rem', cursor: isRatingDisabled ? 'not-allowed' : 'pointer' }}
+                    style={{ fontSize: '1.2rem', cursor: isRatingDisabled ? 'not-allowed' : 'pointer' }}
                     onClick={() => handleClick(star)}
                 />
             ))}

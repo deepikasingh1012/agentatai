@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { getStaff, updateStaff, deleteStaff } from "../../../services/AdminService"; // Import API functions
-import { FaEdit, FaTrash, FaSave, FaDownload } from "react-icons/fa"; // ✅ Added Download Icon
-
-import * as XLSX from "xlsx"; // ✅ Import XLSX for Excel file handling
+import { getStaff, updateStaff, deleteStaff } from "../../../services/AdminService";
+import { FaEdit, FaTrash, FaSave, FaDownload } from "react-icons/fa";
+import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { ToastContainer, toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const AllStaff = () => {
   const [staffList, setStaffList] = useState([]);
@@ -11,7 +12,7 @@ const AllStaff = () => {
   const [editingId, setEditingId] = useState(null);
   const [editedStaff, setEditedStaff] = useState({});
   const clientId = localStorage.getItem("clientId");
-  const [modal, setModal] = useState({ show: false, message: "", onConfirm: null });
+
   useEffect(() => {
     if (clientId) {
       fetchStaff();
@@ -21,17 +22,15 @@ const AllStaff = () => {
   const fetchStaff = async () => {
     try {
       const response = await getStaff();
-      console.log("✅ Fetched Staff for Client ID:", clientId, response);
-
       if (response?.status === "success" && Array.isArray(response.data)) {
         setStaffList(response.data);
       } else {
-        console.error("❌ No valid staff data found:", response);
         setStaffList([]);
+        toast.error("No valid staff data found.");
       }
     } catch (error) {
-      console.error("❌ Error fetching staff:", error);
       setStaffList([]);
+      toast.error("Error fetching staff.");
     } finally {
       setLoading(false);
     }
@@ -48,8 +47,7 @@ const AllStaff = () => {
 
   const handleSaveChanges = async () => {
     if (!editedStaff.user_id) {
-      console.error("❌ Error: Missing user_id in update request", editedStaff);
-      setModal({ show: true, message: "❌ Error: Missing user ID!", onConfirm: null });
+      toast.error("Missing user ID!");
       return;
     }
 
@@ -63,61 +61,79 @@ const AllStaff = () => {
         p_client_id: clientId,
       };
 
-      console.log("📤 Sending Update Request:", updateData);
-
       await updateStaff(updateData);
-      setModal({ show: true, message: "✅ Staff updated successfully!", onConfirm: fetchStaff });
+      toast.success("Staff updated successfully!");
       setEditingId(null);
       fetchStaff();
     } catch (error) {
-      console.error("❌ Error updating staff:", error.response?.data || error.message);
-      setModal({ show: true, message: "❌ Update failed. Try again!", onConfirm: null });
+      toast.error("Update failed. Try again!");
     }
   };
 
-
   const confirmDelete = (userId) => {
-    setModal({
-      show: true,
-      message: "⚠️ Are you sure you want to delete this staff member?",
-      onConfirm: () => handleDelete(userId),
-    });
+    toast.info(
+      <div>
+        <p className="mb-2">Are you sure you want to delete this staff member?</p>
+        <div className="d-flex justify-content-end">
+          <button
+            className="btn btn-sm btn-danger me-2"
+            onClick={() => {
+              toast.dismiss(); // Close the confirmation toast
+              handleDelete(userId);
+            }}
+          >
+            Delete
+          </button>
+          <button className="btn btn-sm btn-secondary" onClick={() => toast.dismiss()}>
+            Cancel
+          </button>
+        </div>
+      </div>,
+      {
+        autoClose: false,
+        closeOnClick: false,
+        closeButton: false,
+      }
+    );
   };
-
+  
   const handleDelete = async (userId) => {
     try {
       await deleteStaff(userId);
-      setModal({ show: true, message: "✅ Staff deleted successfully!", onConfirm: fetchStaff });
+      toast.success("Staff deleted successfully!");
+      fetchStaff();
     } catch (error) {
-      console.error("❌ Error deleting staff:", error);
-      setModal({ show: true, message: "❌ Deletion failed!", onConfirm: null });
+      toast.error("Deletion failed!");
     }
   };
-
- 
+  
 
   const handleDownloadExcel = () => {
     if (staffList.length === 0) {
-      alert("No staff data available to export.");
+      toast.info("No staff data available to export.");
       return;
     }
-  
+
     const worksheet = XLSX.utils.json_to_sheet(staffList);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "StaffData");
-  
-    // Convert to binary and create a Blob
+
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  
-    // Save file
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
     saveAs(data, "Staff_List.xlsx");
-    setModal({ show: true, message: "✅ Excel file downloaded!", onConfirm: null });
+    toast.success("Excel file downloaded!");
   };
+
   return (
     <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center bg-secondary text-white p-3 rounded mb-3">
-        <h4 className="mb-0">Manage Staff</h4>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
+
+      
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center bg-secondary text-white p-3 rounded mb-3">
+        <h4 className="mb-2 mb-md-0">Manage Staff</h4>
         <button className="btn btn-success d-flex align-items-center" onClick={handleDownloadExcel}>
           <FaDownload className="me-2" /> Download Excel
         </button>
@@ -229,23 +245,6 @@ const AllStaff = () => {
               )}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {modal.show && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50">
-          <div className="bg-white p-4 rounded text-center shadow w-100" style={{ maxWidth: "400px" }}>
-            <p className="mb-3">{modal.message}</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setModal({ show: false });
-                modal.onConfirm && modal.onConfirm();
-              }}
-            >
-              OK
-            </button>
-          </div>
         </div>
       )}
     </div>

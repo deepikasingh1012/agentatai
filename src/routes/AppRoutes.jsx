@@ -19,13 +19,16 @@ import Userconversation from "../pages/agent/components/Userconversation";
 import Selfassesment from "../pages/agent/components/Selfassesment";
 
 
-
 // ✅ Updated imports with correct paths
-import Client from '../pages/superadmin/components/Client';
+
 import Setup from '../pages/admin/components/Setup';
 import UpdateDelete from '../pages/admin/components/UpdateDelete';
 import AddStaff from '../pages/admin/components/AddStaff';
 import AllStaff from '../pages/admin/components/AllStaff';
+// ✅ Updated imports with correct paths superadmin
+import Client from '../pages/superadmin/components/Client';
+import AddClient from '../pages/superadmin/components/AddClient';
+import AllClient from '../pages/superadmin/components/AllClient';
 
 
 
@@ -68,10 +71,12 @@ const AppRoutes = () => {
 
       {/* SuperAdmin Routes */}
 
-
-      <Route path="/superadmin" element={<SuperAdminLayout />}>
+ <Route path="/superadmin" element={<SuperAdminLayout />}>
         <Route index element={<SuperAdminDashboard />} />
         <Route path="components/client" element={<Client />} />
+        <Route path="components/add-client" element={<AddClient />} />
+        <Route path="components/all-client" element={<AllClient />} />
+        
       </Route>
 
       {/* Chatbot Public Route */}

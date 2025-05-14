@@ -203,7 +203,7 @@ const AgentLayout = () => {
         </main>
       </div>
       <footer className="bg-dark text-white text-center py-2 mt-auto">
-        © {new Date().getFullYear()} powered by ATai
+        © {new Date().getFullYear()} Powered By ATai
       </footer>
     </div>
   );

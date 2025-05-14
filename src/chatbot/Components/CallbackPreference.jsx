@@ -2,13 +2,13 @@ import React from "react";
 
 const CallbackPreference = ({ options, onSelectCallback }) => {
     return (
-        <div className="mt-3">
-            <p className="fw-bold mb-2">Request a Callback?</p>
-            <div className="d-flex gap-2">
+        <div className="mt-2">
+            <p className="fw-bold mb-1 small">Request a Callback?</p>
+            <div className="d-flex gap-1">
                 {options.map((option, index) => (
                     <button
                         key={index}
-                        className={`btn btn-outline-${option.toLowerCase() === 'call' ? 'success' : 'info'}`}
+                        className={`btn btn-outline-${option.toLowerCase() === 'yes' ? 'success' : 'info'} btn-sm`}
                         onClick={() => onSelectCallback(option)}
                     >
                         {option}

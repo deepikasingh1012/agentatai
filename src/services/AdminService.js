@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getClientId } from '../services/Service'; // adjust path if needed
 
-const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
+const BASE_URL = "https://dev-atai-api.raghavsolars.com/public/api";
 
 // const fetchData = async (method, url, data = {}) => {
 //     try {
@@ -19,7 +19,8 @@ const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
 //   };
 
   export const getInquiryStatusCount = async () => {
-    const clientId = getClientId(); // or get it from user context
+    const clientId = localStorage.getItem("clientId");
+ // or get it from user context
     const response = await axios.get(`${BASE_URL}/inquiry/status-count/${clientId}`);
     return response.data;
   };

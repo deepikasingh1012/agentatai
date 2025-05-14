@@ -119,14 +119,17 @@ const UpdateDelete = () => {
                         p_question_parent_level,
                     });
     
-                    if (response?.success || response?.message?.toLowerCase().includes("deleted")) {
+                    const resMessage = response?.message?.toLowerCase() || "";
+    
+                    if (response?.success || resMessage.includes("deleted") || resMessage.includes("success")) {
                         setModal({
                             show: true,
                             message: "✅ Question deleted successfully!",
                             onConfirm: () => {
                                 setModal({ show: false });
-                                fetchQuestions();
+                                setQuestions(prev => prev.filter(q => q.id !== p_id));
                             },
+                            
                         });
                     } else {
                         setModal({ show: true, message: `❌ Delete failed: ${response?.message || "Unknown error"}` });
@@ -141,6 +144,7 @@ const UpdateDelete = () => {
             },
         });
     };
+    
     
 
 

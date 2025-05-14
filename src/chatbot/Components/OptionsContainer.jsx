@@ -5,7 +5,7 @@ const OptionsContainer = ({ options, handleOptionClick, handleUserQuerySubmit })
     const [showOtherInput, setShowOtherInput] = useState(false);
 
     return (
-        <div className="d-flex flex-wrap gap-2 mt-2">
+        <div className="d-flex flex-wrap gap-1 mt-1">
             {options.map((option, index) => (
                 <button
                     key={index}
@@ -16,7 +16,7 @@ const OptionsContainer = ({ options, handleOptionClick, handleUserQuerySubmit })
                             handleOptionClick(option.question_text);
                         }
                     }}
-                    className="btn btn-outline-primary btn-sm"
+                    className="btn btn-outline-primary btn-sm me-0"
                 >
                     {option.question_text}
                 </button>

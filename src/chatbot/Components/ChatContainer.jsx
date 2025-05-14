@@ -9,25 +9,27 @@ import ToggleButton from './ToggleButton';
 import OtherQueryInput from "./OtherQueryInput";
 import CallbackPreference from "./CallbackPreference";
 import { motion } from 'framer-motion';
-// import '../css/Chat.css';
+// import './ChatContainer.css';
+
 import notificationSoundFile from '../sound/notification.mp3';
 
 import {
     fetchQuestions,
     initRecordingConversation,
     submitCallbackPreference,
-    // sendUserDetailsToBackend,
     submitInquiry,
     submitUserQueryToBackend,
     submitUserRating,
     terminateChat,
     handleTerminateResponse,
-    // sendDataToDatabase
+
 } from '../../services/chatbotServices';
 
-const ChatContainer = () => {
+const ChatContainer = ({ config, clientId }) => {
 
     const inactivityTimerRef = useRef(null);
+    const chatEndRef = useRef(null);
+
 
     const [messages, setMessages] = useState([]);
     const [options, setOptions] = useState([]);
@@ -47,7 +49,7 @@ const ChatContainer = () => {
     const [showCallbackMessage, setShowCallbackMessage] = useState(false);
     const [callbackPreference, setCallbackPreference] = useState(null);
 
-
+    const [exitResponseMessage, setExitResponseMessage] = useState("");
     // const [isOtherOptionDisabled, setIsOtherOptionDisabled] = useState(false);
     const [showReminder, setShowReminder] = useState(false);
     const [showExitPrompt, setShowExitPrompt] = useState(false);
@@ -59,12 +61,26 @@ const ChatContainer = () => {
     const [previousMessages, setPreviousMessages] = useState([]);
 
     const [showSlideWindow, setShowSlideWindow] = useState(false);
+    const [isBackDisabled, setIsBackDisabled] = useState(false);
     const [showTypingEffect, setShowTypingEffect] = useState(false);
     const [showFirstMessage, setShowFirstMessage] = useState(false);
     const [showRestartPrompt, setShowRestartPrompt] = useState(false);
+    // const [shouldShowRating, setShouldShowRating] = useState(false);
+    const [ratingResetKey, setRatingResetKey] = useState(0);
+    const [ratingTriggerPoint, setRatingTriggerPoint] = useState(null);
+    const [selectedOptions, setSelectedOptions] = useState({}); // Track selected options per level
+    const [callbackRequested, setCallbackRequested] = useState(false);
+    const [lastUserSelection, setLastUserSelection] = useState(null); // Track user's last selected option
 
 
-    const clientId = localStorage.getItem("clientId");
+    //PLay notification sound
+
+    const playNotificationSound = useCallback(() => {
+        const notificationSound = new Audio(notificationSoundFile);
+        notificationSound.play().catch(error => console.error("Error playing sound :", error));
+    }, [notificationSoundFile]);
+
+    // const clientId = localStorage.getItem("clientId");
 
 
     // const [robotArrived, setRobotArrived] = useState(false); // ✅ Track robot movement
@@ -85,24 +101,63 @@ const ChatContainer = () => {
     // }, []);
 
 
-    const playNotificationSound = useCallback(() => {
-        const notificationSound = new Audio(notificationSoundFile);
-        notificationSound.play().catch(error => console.error("Error playing sound:", error));
-    }, []);
-
-
-
-    // ✅ Generate a Unique 6-Character Session ID
-    const generateId = () => {
-        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        let uniqueID = "";
-        for (let i = 0; i < 6; i++) {
-            const randomIndex = Math.floor(Math.random() * characters.length);
-            uniqueID += characters[randomIndex];
+    const scrollToBottom = () => {
+        if (chatEndRef.current) {
+            console.log('Scrolling to bottom, chatEndRef.current exists:', chatEndRef.current);
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        } else {
+            console.log('chatEndRef.current is null, cannot scroll');
         }
-        return uniqueID;
     };
 
+    // Ensure scroll on messages update
+    useEffect(() => {
+        console.log('Messages updated, triggering scroll:', messages.length);
+        scrollToBottom();
+    }, [messages]);
+
+    // Ensure scroll after state changes that affect content (e.g., slide window or first message)
+    useEffect(() => {
+        if (!showSlideWindow && showFirstMessage) {
+            scrollToBottom();
+        }
+    }, [showSlideWindow, showFirstMessage]);
+
+
+
+
+
+    // // ✅ Generate a Unique 6-Character Session ID
+    // const generateId = () => {
+    //     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    //     let uniqueID = "";
+    //     for (let i = 0; i < 6; i++) {
+    //         const randomIndex = Math.floor(Math.random() * characters.length);
+    //         uniqueID += characters[randomIndex];
+    //     }
+    //     return uniqueID;
+    // };
+
+
+    function getTodayDateYYMMDD() {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yy = String(today.getFullYear()).slice(-2);
+        return `${dd}${mm}${yy}`;
+    }
+
+    function generateCBRId(clientId) {
+        const key = `counter-${clientId}`; // Use a persistent key per clientId
+        let storedCounters = JSON.parse(localStorage.getItem("clientDateCounters") || "{}");
+        let currentNumber = storedCounters[key] || 0; // Start from 0 if no counter exists
+        currentNumber += 1; // Increment the counter
+        storedCounters[key] = currentNumber; // Update the counter in the object
+        localStorage.setItem("clientDateCounters", JSON.stringify(storedCounters)); // Save back to localStorage
+        const paddedNumber = currentNumber.toString().padStart(4, '0');
+        const date = getTodayDateYYMMDD(); // Keep date for ID format but not for counter reset
+        return `CBR${clientId}-${date}-${paddedNumber}`;
+    }
 
     const [sessionData, setSessionData] = useState({
         sessionId: null,
@@ -110,6 +165,10 @@ const ChatContainer = () => {
         messages: [],
         contactDetails: null,
     });
+
+    // useEffect(() => {
+    //     scrollToBottom();
+    // }, [messages]);
 
     useEffect(() => {
         console.log("isDetailsFormVisible updated:", isDetailsFormVisible);
@@ -163,10 +222,10 @@ const ChatContainer = () => {
         }, 5 * 60 * 1000); // 5 minutes
 
         // Play notification sound after 10 seconds
-        setTimeout(() => {
-            playNotificationSound();
-        }, 1000);
-    }, [playNotificationSound]);
+        // setTimeout(() => {
+        //     playNotificationSound();
+        // }, 1000);
+    });
 
 
     const stopInactivityTimer = useCallback(() => {
@@ -223,7 +282,8 @@ const ChatContainer = () => {
 
     const handleToggleChatbot = async () => {
         if (!isOpen) {
-            const newSessionId = generateId(); // Generate unique session ID
+            resetChatbot(true);
+            const newSessionId = generateCBRId(clientId); // Generate unique session ID
             console.log("Generated Session ID:", newSessionId);
 
             setSessionId(newSessionId);
@@ -232,33 +292,85 @@ const ChatContainer = () => {
 
             startChat(); // Start the chat session
             setIsOpen(true); // Open the chatbot window
-
-            // Call API to initialize conversation recording
-            try {
-                const response = await initRecordingConversation(newSessionId);
-                console.log("✅ Conversation recording started:", response);
-            } catch (error) {
-                console.error("❌ Failed to initialize conversation:", error);
-            }
         }
     };
 
 
+    // const startChat = async () => {
+    //     try {
+
+    //         console.log("🚀 Starting new chat session...");
+    //         setMessages([]);
+    //         setOptions([]);
+    //         setCurrentQuestion(null);
+    //         setShowTypingEffect(true);
+
+    //         setTimeout(async () => {
+    //             setShowTypingEffect(false); // Hide typing effect after 2s
+    //             setShowFirstMessage(true); // Show first bot message
+
+
+    //             console.log("Using Dynamically Client ID:", clientId);
+
+    //             const data = await fetchQuestions(clientId);
+    //             console.log("Fetched Data for Client:", data);
+
+    //             if (!data || !data.questions || data.questions.length === 0) {
+    //                 throw new Error('No questions found in the response:', clientId);
+
+    //             }
+
+    //             console.log("All Questions for Client:", data.questions);
+
+    //             // ✅ First, try to find a question with question_level: 1
+    //             let firstQuestion = data.questions.find(q => q.question_level === 1 && q.question_parent_level === 0);
+
+    //             // ✅ If no level 1 question is found, select the lowest level question instead
+    //             if (!firstQuestion && data.questions.length > 0) {
+    //                 firstQuestion = data.questions.reduce((prev, curr) => (prev.question_level < curr.question_level ? prev : curr));
+    //             }
+
+    //             if (!firstQuestion) {
+    //                 console.error("No valid first question found! Check API response.");
+    //                 return;
+    //             }
+
+    //             console.log("First Question Selected:", firstQuestion);
+
+    //             setMessages([{
+    //                 text: firstQuestion.question_text,
+    //                 sender: 'bot',
+    //                 type: firstQuestion.question_type,
+    //                 url: formatURL(firstQuestion.url),
+    //                 question_label: firstQuestion.question_label
+    //             }]);
+    //             setOptions([...firstQuestion.children || [], { id: "other", question_text: "Other" }]); setCurrentQuestion(firstQuestion);
+    //             // playNotificationSound();
+    //         }, 1000);
+    //     } catch (error) {
+    //         console.error('Error starting chat:', error);
+    //     }
+    // };
+
+
     const startChat = async () => {
         try {
-
-            console.log("🚀 Starting new chat session...");
+            console.log("Starting new chat session for clientId:", clientId);
+            // console.log("🚀 Starting new chat session...");
             setMessages([]);
             setOptions([]);
             setCurrentQuestion(null);
+            setLastUserSelection(null);
+            setSelectedOptions({});
+            setCallbackRequested(false);
             setShowTypingEffect(true);
 
             setTimeout(async () => {
                 setShowTypingEffect(false); // Hide typing effect after 2s
                 setShowFirstMessage(true); // Show first bot message
+                playNotificationSound();
 
-                // const clientId = "8";
-                console.log("Using hardcoded Client ID:", clientId);
+                console.log("Using Dynamically Client ID:", clientId);
 
                 const data = await fetchQuestions(clientId);
                 console.log("Fetched Data for Client:", data);
@@ -289,185 +401,486 @@ const ChatContainer = () => {
                     text: firstQuestion.question_text,
                     sender: 'bot',
                     type: firstQuestion.question_type,
-                    url: formatURL(firstQuestion.url),
-                    question_label: firstQuestion.question_label
+                    url: [2, 4, 5, 6].includes(firstQuestion.question_type)
+                        ? formatURL(firstQuestion.question_label)
+                        : formatURL(firstQuestion.url),
+                    question_label: firstQuestion.question_label,
+                    options: [...(firstQuestion.children || []), { id: "other", question_text: "Other" }] // Add options here
                 }]);
-                setOptions([...firstQuestion.children || [], { id: "other", question_text: "Other" }]); setCurrentQuestion(firstQuestion);
-                playNotificationSound();
+                // setOptions([...firstQuestion.children || [], { id: "other", question_text: "Other" }]); 
+                setCurrentQuestion(firstQuestion);
+                // playNotificationSound();
             }, 1000);
         } catch (error) {
             console.error('Error starting chat:', error);
         }
     };
 
-
+    useEffect(() => {
+        startChat();
+    }, [clientId]);
 
     const handleBackClick = () => {
-        console.log("🔄 Back button clicked! Opening slide window...");
-        setShowSlideWindow(true);
+        if (!isBackDisabled) {
+            console.log("🔄 Back button clicked! Opening slide window...");
+            setShowSlideWindow(true);
+        }
     };
+
+    // const handleBackClick = () => {
+    //     if (!isBackDisabled) {
+    //         console.log('🔄 Back button clicked! Clearing chat and opening slide window...');
+    //         playNotificationSound();
+    //         setMessages([]);
+    //         setOptions([]);
+    //         setCurrentQuestion(null);
+    //         setLastUserSelection(null);
+    //         setIsDetailsFormVisible(false);
+    //         setIsOtherSelected(false);
+    //         setShowCallbackMessage(false);
+    //         setUserRating(null);
+    //         setIsRatingSubmitted(false);
+    //         setRatingTriggerPoint(null);
+    //         setRatingResetKey((prev) => prev + 1);
+    //         setSelectedOptions({});
+    //         setCallbackRequested(false);
+    //         setSessionData({
+    //             sessionId: null,
+    //             messages: [],
+    //             contactDetails: null,
+    //         });
+    //         localStorage.removeItem('chatHistory');
+    //         localStorage.removeItem('userRating');
+    //         setShowSlideWindow(true);
+    //     }
+    // };
 
     const loadPreviousConversation = () => {
         console.log("🔄 Loading previous conversation...");
+        setShowTypingEffect(true)
+        playNotificationSound();
 
-        try {
-            const savedMessages = localStorage.getItem("chatHistory");
+        setTimeout(() => {
+            try {
+                const savedMessages = localStorage.getItem("chatHistory");
 
-            if (savedMessages) {
-                const parsedMessages = JSON.parse(savedMessages);
+                if (savedMessages) {
+                    const parsedMessages = JSON.parse(savedMessages);
 
-                if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
-                    setMessages(parsedMessages);
-                    console.log("✅ Previous chat loaded successfully:", parsedMessages);
+                    if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+                        setMessages(parsedMessages);
+                        console.log(" Previous chat loaded successfully:", parsedMessages);
+                    } else {
+                        console.warn(" No valid previous chat found.");
+                    }
                 } else {
-                    console.warn("⚠️ No valid previous chat found.");
+                    console.warn("No chat messages found in localStorage.");
                 }
-            } else {
-                console.warn("⚠️ No chat messages found in localStorage.");
+            } catch (error) {
+                console.error("Error loading previous chat:", error);
             }
-        } catch (error) {
-            console.error("❌ Error loading previous chat:", error);
-        }
-
-        setShowSlideWindow(false); // ✅ Close slider after loading previous chat
+            setShowTypingEffect(false);
+            setShowSlideWindow(false);
+            // setIsBackDisabled(true);
+        }, 1000);
     };
+
+    // const startNewConversation = async () => {
+    //     console.log("🆕 Starting a new conversation...");
+    //     setPreviousMessages([...messages]); // Save old messages
+    //     setMessages([]); // Clear chat
+    //     setOptions([]); // Reset options
+    //     setCurrentQuestion(null); // Reset chatbot state
+    //     setIsDetailsFormVisible(false); // Hide form
+    //     setIsOtherSelected(false); // Reset "Other" option
+    //     setShowCallbackMessage(false);
+    //     setShowSlideWindow(false); // Close the slide window
+
+    //     // ✅ Reset the rating state
+    //     setUserRating(null);
+    //     setIsRatingSubmitted(false);
+
+    //     localStorage.removeItem("chatHistory"); // ✅ Fix key mismatch
+    //     localStorage.removeItem("userRating"); // ✅ Ensure rating is cleared from storage
+
+    //     setTimeout(() => {
+    //         startChat(); // Start a fresh chat
+    //     }, 1000);
+    // };
+
 
     const startNewConversation = async () => {
         console.log("🆕 Starting a new conversation...");
-        setPreviousMessages([...messages]); // Save old messages
-        setMessages([]); // Clear chat
-        setOptions([]); // Reset options
-        setCurrentQuestion(null); // Reset chatbot state
-        setIsDetailsFormVisible(false); // Hide form
-        setIsOtherSelected(false); // Reset "Other" option
-        setShowCallbackMessage(false);
-        setShowSlideWindow(false); // Close the slide window
-
-        // ✅ Reset the rating state
-        setUserRating(null);
-        setIsRatingSubmitted(false);
-
-        localStorage.removeItem("chatHistory"); // ✅ Fix key mismatch
-        localStorage.removeItem("userRating"); // ✅ Ensure rating is cleared from storage
+        setShowTypingEffect(true)
+        playNotificationSound();
 
         setTimeout(() => {
-            startChat(); // Start a fresh chat
+            setPreviousMessages([...messages]);
+            setMessages([]);
+            setCurrentQuestion(null);
+            setLastUserSelection(null); // Reset last user selection
+            setIsDetailsFormVisible(false);
+            setIsOtherSelected(false);
+            setShowCallbackMessage(false);
+            setUserRating(null);
+            setIsRatingSubmitted(false);
+            setRatingTriggerPoint(null);
+            setRatingResetKey(prev => prev + 1);
+            setSelectedOptions({});
+            setCallbackRequested(false);
+            setSessionData({
+                sessionId: null,
+                messages: [],
+                contactDetails: null,
+            });
+            localStorage.removeItem("chatHistory");
+            localStorage.removeItem("userRating");
+
+            setShowSlideWindow(false);
+            startChat();
+            // setShowFirstMessage(true); // Display the new conversation
+            setIsBackDisabled(false);
+            scrollToBottom();
+            setShowTypingEffect(false);
+
+        }, 1000);
+    };
+
+    const handleBackWindowSelection = (option) => {
+        if (option === 'Continue old conversation') {
+            loadPreviousConversation();
+        } else if (option === 'Start a new conversation') {
+            startNewConversation();
+        }
+        playNotificationSound();
+    };
+
+
+
+    // const handleUserSelection = (selectedOption, questionIndex) => {
+    //     console.log("User selected:", selectedOption);
+    //     setShowTypingEffect(true);
+    //     playNotificationSound();
+
+    //     setTimeout(() => {
+    //         const currentMsgIndex = messages
+    //             .slice()
+    //             .reverse()
+    //             .findIndex((msg) => msg.sender === 'bot' && msg.options && msg.options.length > 0);
+    //         const currentMsg = currentMsgIndex >= 0 ? messages[messages.length - 1 - currentMsgIndex] : messages[questionIndex];
+
+    //         if (!currentMsg) {
+    //             console.error("No valid bot message with options found.");
+    //             setShowTypingEffect(false);
+    //             return;
+    //         }
+
+    //         const levelKey = `${currentMsg.text}-${messages.indexOf(currentMsg)}`;
+    //         if (selectedOptions[levelKey] === selectedOption.question_text) {
+    //             console.log("Option already selected at this level, ignoring re-selection.");
+    //             setShowTypingEffect(false);
+    //             return;
+    //         }
+
+    //         let nextQuestion = currentMsg.options.find((q) => q.id === selectedOption.id);
+    //         console.log("Next question found:", nextQuestion, "Children:", nextQuestion?.children);
+
+    //         let messageUrl = null;
+    //         if (nextQuestion?.question_label && nextQuestion.question_label !== 'null') {
+    //             switch (nextQuestion.question_type) {
+    //                 case 2:
+    //                 case 3:
+    //                 case 4:
+    //                 case 5:
+    //                 case 6:
+    //                     messageUrl = formatURL(nextQuestion.question_label);
+    //                     break;
+    //                 default:
+    //                     messageUrl = formatURL(nextQuestion.url || currentMsg.url);
+    //             }
+    //         }
+
+    //         setMessages((prevMessages) => {
+    //             const newMessages = [...prevMessages];
+    //             if (!newMessages.some((msg) => msg.text === selectedOption.question_text && msg.sender === 'user')) {
+    //                 newMessages.push({ text: selectedOption.question_text, sender: 'user' });
+    //             }
+
+    //             if (nextQuestion && nextQuestion.children && nextQuestion.children.length > 0) {
+    //                 newMessages.push({
+    //                     text: nextQuestion.question_text,
+    //                     sender: 'bot',
+    //                     type: nextQuestion.question_type || currentMsg.type,
+    //                     url: messageUrl,
+    //                     question_label: nextQuestion.question_label || currentMsg.question_label,
+    //                     options: nextQuestion.children
+    //                         ? [...nextQuestion.children, { id: "other", question_text: "Other" }]
+    //                         : [{ id: "other", question_text: "Other" }]
+    //                 });
+    //             } else {
+    //                 newMessages.push({
+    //                     text: nextQuestion?.question_text || "Response",
+    //                     sender: 'bot',
+    //                     type: nextQuestion?.question_type || currentMsg.type,
+    //                     url: messageUrl,
+    //                     question_label: nextQuestion?.question_label || currentMsg.question_label
+    //                 });
+    //             }
+
+    //             console.log("Updated messages:", newMessages);
+    //             return newMessages;
+    //         });
+
+    //         setCurrentQuestion(nextQuestion || null);
+    //         setLastUserSelection(selectedOption.question_text);
+    //         setSelectedOptions((prev) => ({ ...prev, [levelKey]: selectedOption.question_text }));
+
+    //         if (!nextQuestion || !nextQuestion.children || nextQuestion.children.length === 0) {
+    //             if (!callbackRequested) {
+    //                 setCallbackRequested(true);
+    //                 setShowCallbackMessage(true);
+    //             }
+    //         }
+
+    //         setShowTypingEffect(false);
+    //     }, 1000);
+    // };
+
+
+
+
+
+
+
+
+
+    // const handleUserSelection = (selectedOption, questionIndex) => {
+    //     console.log("User selected:", selectedOption);
+    //     setShowTypingEffect(true)
+    //     playNotificationSound();
+
+    //     setTimeout(() => {
+
+    //         const currentMsg = messages[questionIndex];
+    //         if (!currentMsg || !currentMsg.options || currentMsg.options.length === 0) {
+    //             console.log("No further options available for this question. Chat ended.");
+    //             return;
+    //         }
+
+    //         const levelKey = `${currentMsg.text}-${questionIndex}`;
+    //         if (selectedOptions[levelKey] === selectedOption.question_text) {
+    //             console.log("Option already selected at this level, ignoring re-selection.");
+    //             return;
+    //         }
+
+    //         let nextQuestion = currentMsg.options.find(q => q.id === selectedOption.id);
+    //         console.log("Next question found:", nextQuestion, "Children:", nextQuestion?.children);
+
+    //         let messageUrl = null;
+    //         if (nextQuestion?.question_label) {
+    //             switch (nextQuestion.question_type) {
+    //                 case 2: //File download
+    //                 case 4: //Video
+    //                 case 5: //Image
+    //                 case 6: //Link
+    //                     messageUrl = formatURL(nextQuestion.question_label);
+    //                     break;
+    //                 default:
+    //                     messageUrl = formatURL(nextQuestion.url || currentMsg.url);
+    //             }
+    //         }
+
+    //         if (nextQuestion && nextQuestion.children && nextQuestion.children.length > 0) {
+    //             setMessages(prevMessages => {
+    //                 const newMessages = [...prevMessages];
+    //                 if (!newMessages.some(msg => msg.text === selectedOption.question_text && msg.sender === 'user')) {
+    //                     newMessages.splice(questionIndex + 1, 0, { text: selectedOption.question_text, sender: 'user' });
+    //                 }
+    //                 newMessages.push({
+    //                     text: nextQuestion.question_text,
+    //                     sender: 'bot',
+    //                     type: nextQuestion.question_type || currentMsg.type,
+    //                     url: messageUrl,
+    //                     // url: formatURL(nextQuestion.url || currentMsg.url),
+    //                     question_label: nextQuestion.question_label || currentMsg.question_label,
+    //                     options: nextQuestion.children ? [...nextQuestion.children, { id: "other", question_text: "Other" }] : [{ id: "other", question_text: "Other" }]
+    //                 });
+    //                 console.log("New message options:", nextQuestion.children ? [...nextQuestion.children, { id: "other", question_text: "Other" }] : [{ id: "other", question_text: "Other" }]
+
+    //                 );
+
+    //                 return newMessages;
+    //             });
+    //             setCurrentQuestion(nextQuestion);
+    //             setLastUserSelection(selectedOption.question_text);
+    //             setSelectedOptions(prev => ({ ...prev, [levelKey]: selectedOption.question_text }));
+    //         } else if (!callbackRequested) {
+    //             // Trigger callback only if all options at this level have been selected
+    //             setLastUserSelection(selectedOption.question_text);
+    //             const lastBotQuestion = currentMsg.options.find(opt => opt.id === selectedOption.id) || currentMsg;
+    //             setCurrentQuestion(lastBotQuestion);
+
+    //             setMessages(prevMessages => {
+    //                 const newMessages = [...prevMessages];
+    //                 if (!newMessages.some(msg => msg.text === selectedOption.question_text && msg.sender === 'user')) {
+    //                     newMessages.splice(questionIndex + 1, 0, { text: selectedOption.question_text, sender: 'user' });
+    //                 }
+
+    //                 //Add the bot message with the url if applicable
+    //                 if (messageUrl) {
+    //                     newMessages.push({
+    //                         text: lastBotQuestion.question_text,
+    //                         sender: 'bot',
+    //                         type: lastBotQuestion.question_type || currentMsg.type,
+    //                         url: messageUrl,
+    //                         question_label: lastBotQuestion.question_label || currentMsg.question_label
+    //                     });
+    //                 }
+
+    //                 return newMessages;
+    //             });
+
+    //             setCallbackRequested(true);
+    //             setShowCallbackMessage(true);
+    //         }
+    //         setShowTypingEffect(false);
+    //     }, 1000);
+    // };
+
+    const handleUserSelection = (selectedOption, questionIndex) => {
+        console.log("User selected:", selectedOption);
+        setShowTypingEffect(true);
+        playNotificationSound();
+
+        setTimeout(() => {
+            const currentMsg = messages[questionIndex];
+            if (!currentMsg || !currentMsg.options || currentMsg.options.length === 0) {
+                console.log("No further options available for this question. Chat ended.");
+                setShowTypingEffect(false);
+                return;
+            }
+
+            const levelKey = `${currentMsg.text}-${questionIndex}`;
+            if (selectedOptions[levelKey] === selectedOption.question_text) {
+                console.log("Option already selected at this level, ignoring re-selection.");
+                setShowTypingEffect(false);
+                return;
+            }
+
+            let nextQuestion = currentMsg.options.find(q => q.id === selectedOption.id);
+            console.log("Next question found:", nextQuestion, "Children:", nextQuestion?.children);
+
+            let messageUrl = null;
+            if (nextQuestion?.question_label && nextQuestion.question_label !== 'null') {
+                switch (nextQuestion.question_type) {
+                    case 2: // File download
+                    case 4: // Video
+                    case 5: // Image
+                    case 6: // Link
+                        messageUrl = formatURL(nextQuestion.question_label);
+                        break;
+                    default:
+                        messageUrl = formatURL(nextQuestion.url || currentMsg.url);
+                }
+            }
+
+            setMessages(prevMessages => {
+                const newMessages = [...prevMessages];
+                const insertIndex = newMessages.length; // Insert after the last message
+
+                // Add user message
+                if (!newMessages.some(msg => msg.text === selectedOption.question_text && msg.sender === 'user')) {
+                    newMessages.splice(insertIndex, 0, { text: selectedOption.question_text, sender: 'user' });
+                }
+
+                // Add bot message for leaf nodes
+                if (nextQuestion && !nextQuestion.children || nextQuestion.children.length === 0) {
+                    if (messageUrl) {
+                        newMessages.push({
+                            text: nextQuestion?.question_text || selectedOption.question_text,
+                            sender: 'bot',
+                            type: nextQuestion?.question_type || currentMsg.type,
+                            url: messageUrl,
+                            question_label: nextQuestion?.question_label || currentMsg.question_label
+                        });
+                    }
+                } else if (nextQuestion && nextQuestion.children && nextQuestion.children.length > 0) {
+                    newMessages.push({
+                        text: nextQuestion.question_text,
+                        sender: 'bot',
+                        type: nextQuestion.question_type || currentMsg.type,
+                        url: messageUrl,
+                        question_label: nextQuestion.question_label || currentMsg.question_label,
+                        options: nextQuestion.children ? [...nextQuestion.children, { id: "other", question_text: "Other" }] : [{ id: "other", question_text: "Other" }]
+                    });
+                }
+
+                console.log("Updated messages:", JSON.stringify(newMessages, null, 2));
+                return newMessages;
+            });
+
+            setCurrentQuestion(nextQuestion || null);
+            setLastUserSelection(selectedOption.question_text);
+            setSelectedOptions(prev => ({ ...prev, [levelKey]: selectedOption.question_text }));
+
+            // Trigger callback message only if not already requested
+            if (!nextQuestion || !nextQuestion.children || nextQuestion.children.length === 0) {
+                if (!callbackRequested) {
+                    setCallbackRequested(true);
+                    setShowCallbackMessage(true);
+                }
+            }
+
+            setShowTypingEffect(false);
         }, 1000);
     };
 
 
-
-
-    const handleUserSelection = (selectedOption) => {
-        console.log("User selected:", selectedOption);
-
-
-        if (!currentQuestion || !currentQuestion.children || currentQuestion.children.length === 0) {
-            console.log("No further questions available. Chat ended.");
-            return;
-        }
-
-        // ✅ Find the next question
-        let nextQuestion = currentQuestion.children.find(q => q.id === selectedOption.id);
-
-        console.log("Next question found:", nextQuestion);
-
-        if (nextQuestion) {
-            setMessages(prevMessages => {
-                const newMessages = [...prevMessages];
-
-                //user message
-                if (!newMessages.some(msg => msg.text === selectedOption.question_text && msg.sender === 'user')) {
-                    newMessages.push({ text: selectedOption.question_text, sender: 'user' });
-                }
-
-                //Bot message
-                if (!newMessages.some(msg => msg.text === nextQuestion.question_text && msg.sender === 'bot')) {
-                    newMessages.push({
-                        text: nextQuestion.question_text,
-                        sender: 'bot',
-                        type: nextQuestion.question_type,
-                        url: formatURL(nextQuestion.url),
-                        question_label: nextQuestion.question_label
-                    });
-                }
-
-                return newMessages;
-            });
-
-            // ✅ Print what options are available at this stage
-            console.log("📝 Available Options for Next Step:", nextQuestion.children);
-
-
-            // ✅ Display only relevant next-level options
-            setOptions(nextQuestion.children ? [...nextQuestion.children, { id: "other", question_text: "Other" }] : []);
-            setCurrentQuestion(nextQuestion);
-            playNotificationSound();
-
-            // ✅ Show user details form if this is the final question
-            if (!nextQuestion.children || nextQuestion.children.length === 0) {
-                console.log("Final question reached. Passing data to the database...")
-                // sendDataToDatabase(sessionId, selectedOption.question_text);  // Send session_id and option to database
-                setIsDetailsFormVisible(true); // ✅ Now the form will appear
-
-            }
-
-        } else {
-            console.log("No further questions. End of conversation.");
-        }
-    };
-
-
-
-    const handleOptionClick = (selectedOptionLabel) => {
-        console.log("Clicked Option:", selectedOptionLabel);
+    const handleOptionClick = (selectedOptionLabel, questionIndex) => {
+        console.log("Clicked Option:", selectedOptionLabel, "from questionIndex:", questionIndex);
+        playNotificationSound();
         resetInactivityTimer();
 
-        // ✅ If "Other" is clicked, check if details are submitted
+        const currentOptions = messages[questionIndex]?.options || [];
+        const selectedOption = currentOptions.find(opt => opt.question_text === selectedOptionLabel);
+
         if (selectedOptionLabel === "Other") {
             if (!isDetailsFormVisible) {
-                setIsDetailsFormVisible(true); // ✅ Show details form first
+                setIsDetailsFormVisible(true);
                 setIsOtherSelected(true);
                 return;
             }
         }
 
-        //Handle Callback Response (Yes/No)
-        if (showCallbackMessage && (selectedOptionLabel === "Yes" || selectedOptionLabel === "No")) {
-            handleCallbackSelection(selectedOptionLabel);
-            return;
-
-        }
-        setIsOtherSelected(false);
-        // ✅ Find the selected question from current options
-        let selectedOption = options.find(opt => opt.question_text === selectedOptionLabel);
-
         if (selectedOption) {
-            handleUserSelection(selectedOption);  // 🔹 Now correctly processes the next step
-            // ✅ After the last question, show the "Request a Callback?" message
-            if (!selectedOption.children || selectedOption.children.length === 0) {
-
-                setShowCallbackMessage(true); // ✅ Show callback message
-
+            if (messages[questionIndex].text === "Request a Callback?") {
+                console.log("Handling callback selection for:", selectedOptionLabel);
+                handleCallbackSelection(selectedOptionLabel);
+            } else {
+                handleUserSelection(selectedOption, questionIndex);
             }
-
         } else {
             console.log("Selected option not found in available choices.");
         }
     };
+
     const handleUserQuerySubmit = async (query) => {
         console.log("🚀 handleUserQuerySubmit fired with query:", query);
+        setShowTypingEffect(true);
+        playNotificationSound();
         resetInactivityTimer();
 
-        if (!query.trim()) return;
+        if (!query.trim()) {
+            setShowTypingEffect(false);
+            return;
+        }
+
         console.log("isDetailsSubmitted before submitting query:", isDetailsSubmitted);
 
         if (!isDetailsSubmitted) {
             console.log("🚨 User details not submitted! Please submit your details first.");
 
-            // Store the query to auto-submit after details
             setPendingQuery(query);
-            console.log("stored pending QUery:", query);
             setIsDetailsRequested(true);
             setIsOtherSelected(true);
             setIsDetailsFormVisible(true);
@@ -480,8 +893,7 @@ const ChatContainer = () => {
                     type: "warning"
                 }
             ]);
-            // setIsDetailsFormVisible(true);
-            // setIsOtherSelected(true);
+            setShowTypingEffect(false);
             return;
         }
 
@@ -498,88 +910,39 @@ const ChatContainer = () => {
                     type: "warning"
                 }
             ]);
+            setShowTypingEffect(false);
             return;
         }
 
-        const queryResponse = await submitUserQueryToBackend(sessionId, query, userDetails);
+        // ✅ Save query to localStorage
+        const existingQueries = JSON.parse(localStorage.getItem("userQueries") || "[]");
+        existingQueries.push({ sessionId, query, userDetails, timestamp: new Date().toISOString() });
+        localStorage.setItem("userQueries", JSON.stringify(existingQueries));
 
-        if (queryResponse.message.includes("Invalid")) {
-            console.error("🚨 Failed to submit user query:", queryResponse);
-            return;
-        }
+        // ✅ Simulate bot reply
+        setTimeout(() => {
+            setMessages(prevMessages => [
+                ...prevMessages,
+                { text: query, sender: "user" },
+                { text: "Thank you for your question! Our team will get back to you shortly.", sender: "bot" }
+            ]);
+            setShowTypingEffect(false);
+        }, 500);
 
-        setMessages(prevMessages => [
-            ...prevMessages,
-            { text: query, sender: "user" },
-            { text: queryResponse.message || "Your query has been received.", sender: "bot" }
-        ]);
         setIsQuerySubmitted(true);
-        setUserQuery(""); // Reset input field
-        setPendingQuery(""); // Clear pending query (if it was used)
+        setUserQuery("");
+        setPendingQuery("");
     };
-
-    // const handleUserDetailsSubmit = async (details) => {
-    //     console.log("User details submitted:", details);
-
-    //     if (!details || !details.userName || !details.userContact || !details.userEmail) {
-    //         console.error("🚨 Invalid user details:", details);
-    //         return;
-    //     }
-
-    //     setSessionData(prev => ({
-    //         ...prev,
-    //         contactDetails: details,
-    //     }));
-
-    //     try {
-    //         const response = await sendUserDetailsToBackend(sessionId, details);
-    //         console.log("API Response:", response);
-
-    //         let newMessages = [
-    //             { text: `Name: ${details.userName}`, sender: "user" },
-    //             { text: `Mobile: ${details.userContact}`, sender: "user" },
-    //             { text: `Email: ${details.userEmail}`, sender: "user" },
-    //             { text: response?.message || "Your details have been submitted.", sender: "bot" }
-    //         ];
-
-    //         // if (isDetailsRequested) {
-    //         //     newMessages.push({ text: "Thank you for submitting your details.", sender: "bot" });
-    //         // }
-
-    //         setMessages(prevMessages => [...prevMessages, ...newMessages]);
-    //         setIsDetailsRequested(false);
-
-
-    //         setIsDetailsSubmitted(true);
-    //         setIsDetailsFormVisible(false);
-
-    //         // ✅ Auto-submit the previously typed query (if exists)
-    //         // if (pendingQuery.trim()) {
-    //         //     console.log("🟡 Auto-submitting saved query:", pendingQuery);
-    //         //     handleUserQuerySubmit(pendingQuery);
-    //         //     setPendingQuery("");
-    //         // } else {
-    //         //     console.log("No pendingQuery to submit.")
-    //         // }
-
-    //     } catch (error) {
-    //         console.error("Failed to store user details:", error);
-    //         setMessages(prevMessages => [
-    //             ...prevMessages,
-    //             { text: "❌ Failed to submit details. Please try again.", sender: "bot" }
-    //         ]);
-    //         return;
-    //     }
-
-
-    // };
 
 
     const handleUserDetailsSubmit = async (details) => {
         console.log("User details submitted:", details);
+        setShowTypingEffect(true);
+        playNotificationSound();
 
         if (!details || !details.userName || !details.userContact || !details.userEmail) {
             console.error("🚨 Invalid user details:", details);
+            setShowTypingEffect(false);
             return;
         }
 
@@ -587,26 +950,6 @@ const ChatContainer = () => {
             ...prev,
             contactDetails: details,
         }));
-
-
-
-        // const lastQuestionLevel = currentQuestion?.question_parent_level || 0;
-        // try {
-        //     const inquiryPayload = {
-        //         action_type: "I",
-        //         p_status: "",
-        //         p_User_id: sessionId,
-        //         p_Client_name: details.userName,
-        //         p_contact: details.userContact,
-        //         p_email: details.userEmail,
-        //         p_last_question: lastQuestionLevel, // ✅ using question_parent_level here
-        //         p_agent_remarks: "",
-        //         p_Next_followup: "",
-        //         p_page_size: 10,
-        //         p_page: 1,
-        //         p_Client_id: clientId
-        //     };
-
 
         const lastQuestionId = currentQuestion?.id || 0;
 
@@ -633,13 +976,15 @@ const ChatContainer = () => {
                 { text: `Name: ${details.userName}`, sender: "user" },
                 { text: `Mobile: ${details.userContact}`, sender: "user" },
                 { text: `Email: ${details.userEmail}`, sender: "user" },
-                { text: inquiryResponse?.message || "Your inquiry has been submitted.", sender: "bot" }
+                // { text: inquiryResponse?.message || "Your inquiry has been submitted.", sender: "bot" }
+                { text: "Thank you for sharing your details!Our representatives will get in touch with you shortly.", sender: "bot" }
             ];
 
             setMessages(prevMessages => [...prevMessages, ...newMessages]);
             setIsDetailsRequested(false);
             setIsDetailsSubmitted(true);
             setIsDetailsFormVisible(false);
+            setRatingTriggerPoint("details");
 
         } catch (error) {
             console.error("❌ Failed to submit inquiry:", error);
@@ -648,55 +993,182 @@ const ChatContainer = () => {
                 { text: "❌ Failed to submit your inquiry. Please try again later.", sender: "bot" }
             ]);
         }
+        setShowTypingEffect(false);
     };
 
     const handleCloseReminder = async () => {
         setShowReminder(false);
-        // if (sessionId && typeof sessionId === "string") {
-        //     await handleExitPrompt(sessionId);
-        // } else {
-        //     console.error("❌ Invalid session ID.");
-        //     setMessages((prevMessages) => [
-        //         ...prevMessages,
-        //         { sender: "bot", text: "Session ID is missing or invalid." }
-        //     ]);
-        // }
+        playNotificationSound();
     };
+
+
+    // const handleExitPrompt = async (sessionId) => {
+    //     if (!sessionId || typeof sessionId !== "string") {
+    //         console.error("❌ Invalid session ID provided for handleExitPrompt.");
+    //         // alert("Session ID is missing or invalid.");
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: "Session ID is missing or invalid." }
+    //         ]);
+    //         return;
+    //     }
+
+    //     try {
+    //         const terminateData = await terminateChat(sessionId);
+
+    //         if (!terminateData || !terminateData.message) {
+    //             console.warn("⚠️ Terminate API response is missing the 'message' property:", terminateData);
+    //             setExitPromptMessage("Something went wrong. Please try again."); // Fallback message
+    //         } else {
+    //             setExitPromptMessage(terminateData.message); // Dynamically set message
+    //         }
+
+    //         setShowExitPrompt(true); // Show the exit prompt
+    //     } catch (error) {
+    //         console.error("❌ Error fetching exit prompt message:", error);
+    //         setExitPromptMessage("Unable to fetch the prompt. Please try again."); // Fallback message
+    //     }
+    // };
+
+    // const handleExitResponse = async (userMessage, sessionId) => {
+
+    //     // Validate sessionId
+    //     if (!sessionId || typeof sessionId !== "string" || sessionId.trim() === "") {
+    //         console.error("❌ Invalid session ID provided for handleExitResponse:", sessionId);
+    //         // alert("Session ID is missing or invalid. Please try again.");
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: "Session ID is missing or invalid. Please try again." }
+    //         ]);
+    //         return;
+    //     }
+
+    //     // Validate userMessage
+    //     if (!userMessage || (userMessage !== "Yes" && userMessage !== "No")) {
+    //         console.error("❌ Invalid message provided for handleExitResponse:", userMessage);
+    //         // alert("Invalid response. Please choose Yes or No.");
+
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: "Invalid response. Please choose Yes or No." }
+    //         ]);
+    //         return;
+    //     }
+
+    //     try {
+    //         console.log("🔄 Sending terminate_response API with sessionId:", sessionId, "message:", userMessage, clientId);
+
+    //         const terminateResponse = await handleTerminateResponse(sessionId, userMessage, clientId); // Make API call
+
+    //         console.log("✅ Terminate Response API Response:", terminateResponse);
+
+    //         if (!terminateResponse || !terminateResponse.message) {
+    //             console.warn("⚠️ TerminateResponse API response is missing the 'message' property:", terminateResponse);
+    //             setMessages((prevMessages) => [
+    //                 ...prevMessages,
+    //                 { sender: "bot", text: "We were unable to process your request. Please try again later." }
+    //             ]);
+    //             return; // Exit early
+    //         }
+
+    //         // Display the API response in the chatbot
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: terminateResponse.message } // Add API's response message
+    //         ]);
+
+    //         if (userMessage === "Yes") {
+    //             console.log("✅ User selected Yes. Keeping chatbot open...");
+    //             setShowExitPrompt(false); // Hide exit prompt but keep chatbot open
+    //         } else if (userMessage === "No") {
+    //             console.log("✅ User selected No. Closing chatbot...");
+    //             setTimeout(() => {
+    //                 resetChatbot(); // Reset chatbot state
+    //                 setIsOpen(false); // Close chatbot UI
+    //             }, 2000); // Delay closing to ensure message is displayed
+    //         }
+    //     } catch (error) {
+    //         console.error("❌ Error handling terminate_response API:", error);
+
+    //         // Display fallback error message in chatbot
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: "An error occurred while processing your response. Please try again later." }
+    //         ]);
+    //     }
+    // };
+
+    // Function to handle user's callback selection
+
+    // const handleCallbackSelection = async (preference) => {
+    //     console.log("User selected callback preference:", preference);
+    //     setCallbackPreference(preference);
+    //     setShowCallbackMessage(false); // Hide callback question
+
+    //     // Add user message
+    //     setMessages((prevMessages) => [
+    //         ...prevMessages,
+    //         { sender: "user", text: preference }
+    //     ]);
+
+    //     try {
+    //         // Send preference to API
+    //         const response = await submitCallbackPreference(sessionId, preference);
+    //         console.log("API Response:", response);
+
+    //         // Bot response from API
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: response.message || "Our representatives will reach out to you." }
+    //         ]);
+    //     } catch (error) {
+    //         console.error("Error submitting callback preference:", error);
+    //         setMessages((prevMessages) => [
+    //             ...prevMessages,
+    //             { sender: "bot", text: "Sorry, something went wrong. Please try again later." }
+    //         ]);
+    //     }
+
+    //     // Track callback request
+    //     setSessionData((prev) => ({
+    //         ...prev,
+    //         requestedCallback: preference === "Yes",
+    //     }));
+
+    //     // Show details form after 2 seconds if "YES" is selected
+    //     if (preference === "Yes") {
+    //         setTimeout(() => {
+    //             setIsDetailsFormVisible(true);
+    //         }, 4000);
+
+    //     } else {
+    //         setShowRestartPrompt(true);
+    //     }
+    // };
+
 
     const handleExitPrompt = async (sessionId) => {
         if (!sessionId || typeof sessionId !== "string") {
             console.error("❌ Invalid session ID provided for handleExitPrompt.");
-            // alert("Session ID is missing or invalid.");
             setMessages((prevMessages) => [
                 ...prevMessages,
                 { sender: "bot", text: "Session ID is missing or invalid." }
             ]);
             return;
         }
-
-        try {
-            const terminateData = await terminateChat(sessionId);
-
-            if (!terminateData || !terminateData.message) {
-                console.warn("⚠️ Terminate API response is missing the 'message' property:", terminateData);
-                setExitPromptMessage("Something went wrong. Please try again."); // Fallback message
-            } else {
-                setExitPromptMessage(terminateData.message); // Dynamically set message
-            }
-
+        setShowTypingEffect(true);
+        // Simulate a bot message without API
+        setTimeout(() => {
+            const simulatedMessage = "Oh! Leaving so soon? I'm here if you need anything!";
+            setExitPromptMessage(simulatedMessage); // Set a local prompt message
             setShowExitPrompt(true); // Show the exit prompt
-        } catch (error) {
-            console.error("❌ Error fetching exit prompt message:", error);
-            setExitPromptMessage("Unable to fetch the prompt. Please try again."); // Fallback message
-        }
+            setShowTypingEffect(false);
+        }, 1000); // Optional delay for a smoother experience
     };
 
     const handleExitResponse = async (userMessage, sessionId) => {
-
-        // Validate sessionId
         if (!sessionId || typeof sessionId !== "string" || sessionId.trim() === "") {
             console.error("❌ Invalid session ID provided for handleExitResponse:", sessionId);
-            // alert("Session ID is missing or invalid. Please try again.");
             setMessages((prevMessages) => [
                 ...prevMessages,
                 { sender: "bot", text: "Session ID is missing or invalid. Please try again." }
@@ -704,169 +1176,180 @@ const ChatContainer = () => {
             return;
         }
 
-        // Validate userMessage
         if (!userMessage || (userMessage !== "Yes" && userMessage !== "No")) {
             console.error("❌ Invalid message provided for handleExitResponse:", userMessage);
-            // alert("Invalid response. Please choose Yes or No.");
-
             setMessages((prevMessages) => [
                 ...prevMessages,
                 { sender: "bot", text: "Invalid response. Please choose Yes or No." }
             ]);
             return;
         }
+        setShowTypingEffect(true);
+        playNotificationSound();
+        // Simulate a response based on user input
+        setTimeout(() => {
+            const simulatedResponse =
+                userMessage === "Yes"
+                    ? "One of our representatives will get in touch with you shortly."
 
-        try {
-            console.log("🔄 Sending terminate_response API with sessionId:", sessionId, "message:", userMessage, clientId);
+                    : "Thank you for using our services — we hope to serve you again soon! Have a great day!";
 
-            const terminateResponse = await handleTerminateResponse(sessionId, userMessage, clientId); // Make API call
-
-            console.log("✅ Terminate Response API Response:", terminateResponse);
-
-            if (!terminateResponse || !terminateResponse.message) {
-                console.warn("⚠️ TerminateResponse API response is missing the 'message' property:", terminateResponse);
-                setMessages((prevMessages) => [
-                    ...prevMessages,
-                    { sender: "bot", text: "We were unable to process your request. Please try again later." }
-                ]);
-                return; // Exit early
-            }
-
-            // Display the API response in the chatbot
+            // Display the response in the chat
             setMessages((prevMessages) => [
                 ...prevMessages,
-                { sender: "bot", text: terminateResponse.message } // Add API's response message
+                { sender: "bot", text: simulatedResponse }
             ]);
 
             if (userMessage === "Yes") {
                 console.log("✅ User selected Yes. Keeping chatbot open...");
-                setShowExitPrompt(false); // Hide exit prompt but keep chatbot open
+                setShowExitPrompt(false);
             } else if (userMessage === "No") {
                 console.log("✅ User selected No. Closing chatbot...");
                 setTimeout(() => {
-                    resetChatbot(); // Reset chatbot state
-                    setIsOpen(false); // Close chatbot UI
-                }, 2000); // Delay closing to ensure message is displayed
-            }
-        } catch (error) {
-            console.error("❌ Error handling terminate_response API:", error);
+                    resetChatbot(); // Clear the chat
+                    setIsOpen(false); // Close the chat UI
 
-            // Display fallback error message in chatbot
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                { sender: "bot", text: "An error occurred while processing your response. Please try again later." }
-            ]);
-        }
+                }, 2000);
+            }
+            setShowTypingEffect(false);
+        }, 1000);
     };
 
-    // Function to handle user's callback selection
+
     const handleCallbackSelection = async (preference) => {
         console.log("User selected callback preference:", preference);
-        setCallbackPreference(preference);
-        setShowCallbackMessage(false); // Hide callback question
+        setShowTypingEffect(true);
+        playNotificationSound();
 
-        // Add user message
-        setMessages((prevMessages) => [
-            ...prevMessages,
-            { sender: "user", text: preference }
-        ]);
+        setTimeout(() => {
+            setCallbackPreference(preference);
+            setShowCallbackMessage(false); // Hide callback question
 
-        try {
-            // Send preference to API
-            const response = await submitCallbackPreference(sessionId, preference);
-            console.log("API Response:", response);
-
-            // Bot response from API
+            // Add user message
             setMessages((prevMessages) => [
                 ...prevMessages,
-                { sender: "bot", text: response.message || "Our representatives will reach out to you." }
+                { sender: "user", text: preference }
             ]);
-        } catch (error) {
-            console.error("Error submitting callback preference:", error);
+
+            // Simulate bot response without API
+
+            const botMessage = preference === "Yes"
+                ? "Our representatives will reach out to you shortly."
+                : "Alright! Let us know if you need any help later.";
+
             setMessages((prevMessages) => [
                 ...prevMessages,
-                { sender: "bot", text: "Sorry, something went wrong. Please try again later." }
+                { sender: "bot", text: botMessage }
             ]);
-        }
 
-        // Track callback request
-        setSessionData((prev) => ({
-            ...prev,
-            requestedCallback: preference === "Yes",
-        }));
 
-        // Show details form after 2 seconds if "YES" is selected
-        if (preference === "Yes") {
-            setTimeout(() => {
-                setIsDetailsFormVisible(true);
-            }, 4000);
+            // Track callback request
+            setSessionData((prev) => ({
+                ...prev,
+                requestedCallback: preference === "Yes",
+            }));
 
-        } else {
-            setShowRestartPrompt(true);
-        }
+            // Show details form after 4 seconds if "YES" is selected
+            if (preference === "Yes") {
+                setTimeout(() => {
+                    setIsDetailsFormVisible(true);
+                }, 4000);
+            } else {
+                setShowRestartPrompt(true);
+            }
+            setShowTypingEffect(false);
+        }, 1000);
     };
-    const handleReviewSubmit = async (rating) => {  // ✅ Add `async` keyword
-        setUserRating(rating);
-        setIsRatingSubmitted(true);
-        // Convert rating to star format
-        const ratingStars = "★".repeat(rating) + "☆".repeat(5 - rating);
-        const userMessage = `Ratings: ${ratingStars} (${rating}/5)`;
 
-        try {
-            const response = await submitUserRating(sessionId, rating); // ✅ Use `await` inside async function
-            console.log("✅ Rating API Response:", response);
+
+    const handleReviewSubmit = async (rating) => {
+        setShowTypingEffect(true);
+        playNotificationSound();
+
+        setTimeout(() => {
+            setUserRating(rating);
+            setIsRatingSubmitted(true);
+
+            // Convert rating to star format
+            const ratingStars = "★".repeat(rating) + "☆".repeat(5 - rating);
+            const userMessage = `Ratings: ${ratingStars} (${rating}/5)`;
+
+            // Simulate bot response (no API)
 
             setMessages((prev) => [
                 ...prev,
                 { sender: "user", text: userMessage },
-                { sender: "bot", text: response.message },
-                // ✅ API Response
+                { sender: "bot", text: "Thanks for your feedback! 😊" }
             ]);
-        } catch (error) {
-            console.error("❌ Error submitting rating:", error);
-        }
 
-        setShowRestartPrompt(true);
-        playNotificationSound();
+            setShowRestartPrompt(true);
+            setShowTypingEffect(false);
+        }, 1000);
     };
 
-    const resetChatbot = () => {
+
+
+    const resetChatbot = (fullReset = false) => {
         setMessages([]);
+        setOptions([]);
+        setCurrentQuestion(null);
+        setLastUserSelection(null);
         setShowExitPrompt(false);
+        setExitPromptMessage("");
         setShowCallbackMessage(false);
         setCallbackPreference(null);
-
-        setIsDetailsFormVisible(false);
-        setIsDetailsSubmitted(false);
-
-        setUserRating(null);
-        setIsRatingSubmitted(false);
-
         setIsOtherSelected(false);
         setIsQuerySubmitted(false);
         setShowTypingEffect(false);
         setShowRestartPrompt(false);
         setShowReminder(false);
         setUserQuery("");
-        console.log("Chatbot reset. Query cleared.");
+        setPendingQuery("");
+        setSelectedOptions({});
+        setCallbackRequested(false);
 
+        if (fullReset) {
+            // ✅ Only do this when a brand new session is started
+            setIsDetailsFormVisible(false);
+            setIsDetailsRequested(false);
+            setIsDetailsSubmitted(false);
+            setUserRating(null);
+            setIsRatingSubmitted(false);
+            setRatingTriggerPoint(null);
+            setRatingResetKey(prev => prev + 1);
+            setSessionData({
+                sessionId: null,
+                messages: [],
+                contactDetails: null,
+            });
 
+            localStorage.removeItem("chatHistory");
+            localStorage.removeItem("userRating");
+        }
+
+        console.log("✅ Chatbot reset. Full reset:", fullReset);
     };
 
+
+
     const handleRestartResponse = (response) => {
+        setShowTypingEffect(true);
         if (response === "Yes") {
-            resetChatbot();
+            resetChatbot(false);
+            console.log("Restart chat", response);
             startChat();  // Restart the chat
         } else {
-            // resetChatbot();
-            console.log("Restart chat", response);
-            // setIsOpen(false); // Close chatbot
 
             handleExitResponse("No", sessionId);
         }
+        playNotificationSound();
+        // setShouldShowRating(true);
+        setRatingTriggerPoint("callback");
         setShowRestartPrompt(false);
+        setShowTypingEffect(false);
         console.log(" Restart chat", response);
     };
+
     return (
         <>
             {/* Toggle Button Bottom-Right */}
@@ -875,68 +1358,127 @@ const ChatContainer = () => {
             </div>
 
             {isOpen && (
-                <div className="chat-container border rounded shadow bg-white position-fixed bottom-0 end-0 m-3 w-100 w-sm-auto" style={{ maxWidth: '380px', height: '600px', overflow: 'hidden', zIndex: 1000 }}>
+                <div className="chat-container border rounded shadow bg-white position-fixed bottom-0 end-0 m-5 p-0"
+                    style={{ width: '360px', height: '500px' }}>
+
+                    {/* , overflow: 'hidden', zIndex: 1000 */}
 
                     {/* Chat Header */}
                     <div className="border-bottom">
-                        <ChatHeader handleBackClick={handleBackClick} handleExitPrompt={handleExitPrompt} sessionId={sessionId} />
+                        <ChatHeader handleBackClick={handleBackClick} handleExitPrompt={handleExitPrompt} sessionId={sessionId}
+                            isBackDisabled={isBackDisabled} />
                     </div>
 
-                    {/* Conversation Body */}
-                    <div className="chat-box p-3 overflow-auto" style={{ height: "calc(100% - 60px)" }}>
+                    <div className="chat-box p-2 overflow-auto" style={{ height: 'calc(100% - 60px)' }}>
                         {showSlideWindow && (
-                            <div className="mb-3">
-                                <h5 className="text-center fw-bold">Talk to us...</h5>
-                                <div className="d-flex flex-column gap-2">
-                                    <div className="p-2 bg-light rounded d-flex" onClick={loadPreviousConversation}>
-                                        <span className="me-2">💬</span>
+                            <div className="position-absolute top-0 start-0 w-100 h-100 bg-white d-flex flex-column justify-content-center align-items-center p-3" style={{ zIndex: 1050 }}>
+                                <h5 className="text-center fw-bold mb-2">Talk to us...</h5>
+                                <div className="list-group w-75">
+                                    <button
+                                        className="list-group-item list-group-item-action d-flex align-items-center p-2"
+                                        onClick={() => handleBackWindowSelection('Continue old conversation')}
+                                    >
+                                        <span className="me-2 fs-5">💬</span>
                                         <div>
                                             <div className="fw-bold">Continue old conversation</div>
-                                            <div className="text-muted small">Resume where you left off</div>
+                                            <small className="text-muted">Resume where you left off</small>
                                         </div>
-                                    </div>
-                                    <div className="p-2 bg-light rounded d-flex" onClick={startNewConversation}>
-                                        <span className="me-2">🆕</span>
+                                    </button>
+                                    <button
+                                        className="list-group-item list-group-item-action d-flex align-items-center p-2"
+                                        onClick={() => handleBackWindowSelection('Start a new conversation')}
+                                    >
+                                        <span className="me-2 fs-5">🆕</span>
                                         <div>
                                             <div className="fw-bold">Start a new conversation</div>
-                                            <div className="text-muted small">Begin a fresh chat</div>
+                                            <small className="text-muted">Begin a fresh chat</small>
                                         </div>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         )}
 
                         {showTypingEffect && (
-                            <motion.div className="bot-message typing-effect text-muted fst-italic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} />
+                            <motion.div className="bot-message typing-effect text-muted fst-italic p-2" initial={{ opacity: 0 }} animate={{ opacity: 1, scale: [1, 1.05, 1] }} transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
+                            >
+                                {/* . . . */}
+                            </motion.div>
                         )}
 
+
                         {showFirstMessage && messages.map((msg, index) => (
-                            <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                            <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+                                className="mb-1">
                                 {msg.sender === 'user' && <UserMessage text={msg.text} />}
                                 {msg.sender === 'bot' && (
                                     <>
-                                        <BotMessage text={msg.text} />
-
-                                        {msg.question_label && /\.(jpg|jpeg|png|gif)$/i.test(msg.question_label) && (
-                                            <div className="text-center my-2">
-                                                <img src={msg.question_label} alt="Chatbot response" className="img-fluid rounded" />
-                                            </div>
+                                        <BotMessage text={msg.text} questionLabel={msg.question_label} formatURL={formatURL} />
+                                        {msg.options && msg.options.length > 0 && (
+                                            <OptionsContainer
+                                                options={msg.options}
+                                                handleOptionClick={(label) => handleOptionClick(label, index)}
+                                                handleUserQuerySubmit={handleUserQuerySubmit}
+                                            />
                                         )}
 
-                                        {msg.question_label?.startsWith("http") && (
-                                            <a href={msg.question_label} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary btn-sm my-2">Open Link</a>
-                                        )}
+                                        {/* Media Rendering Section */}
+                                        {msg.url && (
+                                            <div className="media-container mt-1">
+                                                {/* Image Display */}
+                                                {/\.(jpg|jpeg|png|gif|webp)$/i.test(msg.url) && (
+                                                    <div className="text-center my-2">
+                                                        <img
+                                                            src={formatURL(msg.url)}
+                                                            alt="Chat response"
+                                                            className="img-fluid rounded shadow-sm"
+                                                            style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                        {msg.question_label?.toLowerCase().endsWith(".pdf") && msg.url && (
-                                            <a href={msg.url} download target="_blank" rel="noopener noreferrer" className="btn btn-outline-secondary btn-sm my-2">📄 Download PDF</a>
-                                        )}
+                                                {/* PDF Display */}
+                                                {msg.url.toLowerCase().endsWith('.pdf') && (
+                                                    <div className="pdf-preview my-1">
+                                                        <a
+                                                            href={formatURL(msg.url)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="btn btn-outline-primary btn-sm"
+                                                        >
+                                                            <i className="bi bi-file-earmark-pdf me-1"></i> View PDF Document
+                                                        </a>
+                                                    </div>
+                                                )}
 
-                                        {msg.url && /\.(mp4|webm|ogg)$/i.test(msg.url) && (
-                                            <div className="my-2">
-                                                <video controls className="w-100 rounded">
-                                                    <source src={`${msg.url}?t=${Date.now()}`} type="video/mp4" />
-                                                    Your browser does not support the video tag.
-                                                </video>
+                                                {/* Video Display */}
+                                                {/\.(mp4|webm|ogg)$/i.test(msg.url) && (
+                                                    <div className="video-wrapper my-2">
+                                                        <video
+                                                            controls
+                                                            className="w-100 rounded"
+                                                            style={{ maxHeight: '200px' }}
+                                                        >
+                                                            <source src={formatURL(msg.url)} type={`video/${msg.url.split('.').pop()}`} />
+                                                            Your browser does not support the video tag.
+                                                        </video>
+                                                    </div>
+                                                )}
+
+                                                {/* Generic Link Display */}
+                                                {!msg.url.match(/\.(jpg|jpeg|png|gif|webp|pdf|mp4|webm|ogg)$/i) && (
+                                                    <div className="link-preview my-1">
+                                                        <a
+                                                            href={formatURL(msg.url)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="btn btn-outline-primary btn-sm me-2"
+                                                        >
+                                                            View Link
+                                                        </a>
+                                                        {/* <i className="bi bi-box-arrow-up-right me-1"></i> Open Link
+                                                        </a> */}
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </>
@@ -948,23 +1490,25 @@ const ChatContainer = () => {
                         {!isQuerySubmitted ? (
                             isOtherSelected ? (
                                 <OtherQueryInput handleQuerySubmit={handleUserQuerySubmit} isQueryInputDisabled={isQueryInputDisabled} />
-                            ) : (
-                                <OptionsContainer options={options} handleOptionClick={handleOptionClick} handleUserQuerySubmit={handleUserQuerySubmit} />
-                            )
+                            ) : null
+
                         ) : null}
 
                         {showExitPrompt && (
-                            <div className="alert alert-warning text-center">
-                                <p>{exitPromptMessage}</p>
-                                <button className="btn btn-danger btn-sm me-2" onClick={() => handleExitResponse("Yes", sessionId)}>Yes</button>
+                            <div className="alert alert-warning text-center p-1">
+                                <p className="mb-1">{exitPromptMessage}</p>
+                                <div className="d-flex justify-content gap-1"></div>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleExitResponse("Yes", sessionId)}>Yes</button>
                                 <button className="btn btn-secondary btn-sm" onClick={() => handleExitResponse("No", sessionId)}>No</button>
                             </div>
                         )}
 
+
+
                         {showRestartPrompt && (
-                            <div className="alert alert-info text-center">
-                                <p>Would you like to start again?</p>
-                                <div className="d-flex justify-content-center gap-2 mt-2">
+                            <div className="alert alert-info text-center p-1">
+                                <p className="mb-1">Would you like to start again?</p>
+                                <div className="d-flex justify-content-center gap-1">
                                     <button className="btn btn-primary btn-sm" onClick={() => handleRestartResponse("Yes")}>Yes</button>
                                     <button className="btn btn-outline-secondary btn-sm" onClick={() => handleRestartResponse("No")}>No</button>
                                 </div>
@@ -987,224 +1531,24 @@ const ChatContainer = () => {
                             <StarRating handleReviewSubmit={handleReviewSubmit} isRatingDisabled={isRatingSubmitted} />
                         )}
 
+
+
                         {showReminder && (
-                            <div className="alert alert-light position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex justify-content-between align-items-center w-100 px-3">
-                                <span>👋 Still there? Let us know how we can help!</span>
-                                <button className="btn-close" onClick={handleCloseReminder}></button>
+                            <div className="alert alert-light position-absolute bottom-0 start-50 translate-middle-x mb-1 d-flex justify-content-between align-items-center w-90 px-2">
+                                <span className="small">👋 Still there? Let us know how we can help!</span>
+                                <button className="btn-close p-0" onClick={handleCloseReminder}></button>
                             </div>
                         )}
-                    </div>
-                </div>
+                        <div ref={chatEndRef} />
+                    </div >
+                </div >
             )}
         </>
     );
 
-}
+};
 
 export default ChatContainer;
 
 
 
-
-//     return (
-//         <>
-
-//             {/* ✅ Robot Animation (Moves to Toggle Button)
-//             {!robotArrived && (
-//                 <motion.img
-//                     src="/robot.png"  // ✅ Make sure this path is correct
-//                     alt="Chatbot Robot"
-//                     className="robot-animation"
-//                     initial={{ x: "-100vw", opacity: 0 }} // ✅ Start far left
-//                     animate={{ x: "calc(100vw - 90px)", opacity: 1 }} // ✅ Move to the toggle button
-//                     transition={{ duration: 2, ease: "easeInOut" }}
-//                     onAnimationComplete={handleRobotAnimationComplete}
-//                 />
-//             )} */}
-
-
-//             {/* ✅ Show only the toggle button initially */}
-//             <ToggleButton toggleChatbot={handleToggleChatbot} />
-
-//             {/* ✅ Show chat container only when isOpen is true */}
-//             {isOpen && (
-//                 <div className="chat-container">
-//                     <ChatHeader handleBackClick={handleBackClick} handleExitPrompt={handleExitPrompt} sessionId={sessionId} />
-
-
-
-//                     {showSlideWindow && (
-//                         <div className="chat-selection-container">
-//                             <h3 className="chat-selection-title">Talk to us...</h3>
-//                             <div className="chat-selection-options">
-//                                 <div className="chat-option" onClick={loadPreviousConversation}>
-//                                     <span className="chat-icon">💬</span>
-//                                     <div>
-//                                         <p className="chat-option-title">Continue old conversation</p>
-//                                         <p className="chat-option-subtitle">Resume where you left off</p>
-//                                     </div>
-//                                 </div>
-//                                 <div className="chat-option" onClick={startNewConversation}>
-//                                     <span className="chat-icon">🆕</span>
-//                                     <div>
-//                                         <p className="chat-option-title">Start a new conversation</p>
-//                                         <p className="chat-option-subtitle">Begin a fresh chat</p>
-//                                     </div>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     )}
-
-
-
-//                     <div className="chat-box">
-//                         {showTypingEffect && (
-//                             <motion.div
-//                                 className="bot-message typing-effect"
-//                                 initial={{ opacity: 0 }}
-//                                 animate={{ opacity: 1 }}
-//                                 transition={{ duration: 0.5 }}
-//                             >
-
-//                             </motion.div>
-//                         )}
-
-
-//                         {showFirstMessage && messages.map((msg, index) => (
-//                             <motion.div
-//                                 key={index}
-//                                 initial={{ opacity: 0, y: 10 }}
-//                                 animate={{ opacity: 1, y: 0 }}
-//                                 transition={{ duration: 0.5 }}
-//                             >
-//                                 {msg.sender === 'user' && <UserMessage text={msg.text} />}
-//                                 {msg.sender === 'bot' && (
-//                                     <>
-//                                         <BotMessage text={msg.text} />
-
-//                                         {/* ✅ Display Images Directly Inside Chat (Only if it's an image) */}
-//                                         {msg.question_label && /\.(jpg|jpeg|png|gif)$/i.test(msg.question_label) ? (
-//                                             <div className="chat-image-container">
-//                                                 <img
-//                                                     src={msg.question_label}
-//                                                     alt="Chatbot response"
-//                                                     className="chat-image"
-//                                                     onError={(e) => (e.target.style.display = "none")} // Hide broken images
-//                                                 />
-//                                             </div>
-//                                         ) : (
-//                                             // ✅ Open Links (Only if it's NOT an image)
-//                                             msg.question_label?.startsWith("http") && (
-//                                                 <a href={msg.question_label} target="_blank" rel="noopener noreferrer" className="chat-link">
-//                                                     Open Link
-//                                                 </a>
-//                                             )
-//                                         )}
-
-//                                         {/* ✅ File Downloads  */}
-//                                         {/* {msg.question_label === "file" && msg.url && (
-//                                             <a href={msg.url} download target="_blank" rel="noopener noreferrer" className="chat-link">
-//                                                 📄 Download File
-//                                             </a> */}
-
-//                                         {msg.question_label?.toLowerCase().endsWith(".pdf") && msg.url && (
-//                                             <>
-//                                                 {console.log("PDF Message:", msg)}
-//                                                 <a href={msg.url} download target="_blank" rel="noopener noreferrer" className="chat-link">
-//                                                     📄 Download PDF
-//                                                 </a>
-//                                             </>
-//                                         )}
-//                                         {/* ✅ Embedded Videos */}
-//                                         {msg.url && /\.(mp4|webm|ogg)$/i.test(msg.url) && (
-//                                             <>
-//                                                 {console.log("🎥 Video URL:", msg.url)} {/* Debugging */}
-//                                                 <div className="chat-video-container">
-//                                                     <video controls className="chat-video" onError={(e) => (e.target.style.display = "none")}>
-//                                                         <source src={`${msg.url}?t=${Date.now()}`} type="video/mp4" />
-//                                                         Your browser does not support the video tag.
-//                                                     </video>
-//                                                 </div>
-//                                             </>
-//                                         )}
-//                                     </>
-//                                 )}
-//                             </motion.div>
-//                         ))}
-
-
-
-//                         {isQuerySubmitted ? (
-//                             null
-//                         ) : isOtherSelected ? (
-//                             <OtherQueryInput handleQuerySubmit={handleUserQuerySubmit}
-//                                 isQueryInputDisabled={isQueryInputDisabled}
-//                             />
-//                         ) : (
-//                             <OptionsContainer
-//                                 options={options}
-//                                 handleOptionClick={handleOptionClick}
-//                                 handleUserQuerySubmit={handleUserQuerySubmit}
-//                             />
-//                         )}
-
-//                         {showExitPrompt && (
-//                             <div className="exit-prompt">
-//                                 <p>{exitPromptMessage}</p> {/* Dynamically rendered message */}
-//                                 <button onClick={() => handleExitResponse("Yes", sessionId)}>Yes</button>
-//                                 <button onClick={() => handleExitResponse("No", sessionId)}>No</button>
-//                             </div>
-//                         )}
-
-
-
-
-//                         {showRestartPrompt && (
-//                             <div className="restart-prompt">
-//                                 <p>Would you like to start again?</p>
-//                                 <div className="restart-buttons">
-//                                     <button onClick={() => handleRestartResponse("Yes")}>Yes</button>
-//                                     <button onClick={() => handleRestartResponse("No")}>No</button>
-//                                 </div>
-//                             </div>
-//                         )}
-
-
-//                         {/* Show Callback Request Message */}
-//                         {showCallbackMessage && (
-//                             <CallbackPreference options={["Yes", "No"]} onSelectCallback={handleCallbackSelection} />
-//                         )}
-
-//                         {(isOtherSelected || (callbackPreference === "Yes" && isDetailsFormVisible)) && !isDetailsSubmitted && (
-//                             <UserInputContainer
-//                                 currentInputStep="details"
-//                                 handleUserDetailsSubmit={handleUserDetailsSubmit} // ✅ Pass function here
-//                                 detailsSubmitted={isDetailsSubmitted} // ✅ Pass state here
-//                             />
-//                         )}
-
-//                         {/* Display Star Rating after chat completion */}
-//                         {isDetailsSubmitted && !isRatingSubmitted && (
-//                             <StarRating
-//                                 handleReviewSubmit={handleReviewSubmit}
-//                                 isRatingDisabled={isRatingSubmitted}
-//                             // userRating={userRating}
-//                             />
-//                         )}
-//                     </div>
-
-//                     {showReminder && (
-//                         <div className="reminder-popup">
-
-//                             <button className="close-btn" onClick={handleCloseReminder}>
-
-//                                 <i className="fas fa-times"></i>
-//                             </button>
-//                             👋 Still there? Let us know how we can help!
-//                         </div>
-//                     )}
-
-//                 </div >
-//             )}
-//         </>
-//     );
