@@ -217,7 +217,7 @@ export default function HelpSection() {
             </li>
             <li>
               <strong>Remarks & Status:</strong> Agents can write remarks and
-              choose status like Open, In Progress, CRS, or CNR.
+              choose status like Open, In Progress, resolved, No response.
             </li>
             <li>
               <strong>Follow-Up Date:</strong> Future dates can be selected
@@ -230,7 +230,7 @@ export default function HelpSection() {
           </p>
           <ul>
             <li>
-              <strong>Status Restriction:</strong> Closed statuses (CRS, CNR)
+              <strong>Status Restriction:</strong> Resolved and No Response
               lock the follow-up input and can only be selected after the
               current follow-up date.
             </li>
