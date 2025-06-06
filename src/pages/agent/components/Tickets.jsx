@@ -15,6 +15,11 @@ import {
 import {
   getInquiryByClientId,
   getInquiryStatusCount,
+  getOpenInquiries,
+  getInProgressInquiries,
+  getNoResponseInquiries,
+  getResolvedInquiries,
+  getInquiriesByDateRange,
 } from "../../../services/AgentServices";
 import { useOutletContext } from "react-router-dom";
 import CryptoJS from "crypto-js";
@@ -29,15 +34,15 @@ export default function Tickets() {
   const [ticketData, setTicketData] = useState({
     ticket_count: 0,
     Open: 0,
+    Inprogress: 0,
     Resolved: 0,
     Noresponse: 0,
-    Inprogress: 0,
   });
   const [filterStatus, setFilterStatus] = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const ticketsPerPage = 10;
+  const page_size = 10;
   const { searchQuery } = useOutletContext();
   const location = useLocation();
   const clientId = localStorage.getItem("clientId");
@@ -48,9 +53,9 @@ export default function Tickets() {
 
   const statusKeywords = {
     Open: ["open", "OPN"],
-  Resolved: ["resolved", "CRS"],
-  "No-Response": [" response", "CNR"],
-    "In-Progress": ["INP"],
+    "In-Progress": ["in progress", "INP"],
+    Resolved: ["resolved", "CRS"],
+    "No-Response": ["no response", "CNR"],
   };
 
   const getStatusDescription = (code) => {
@@ -71,9 +76,9 @@ export default function Tickets() {
   const statusIcons = {
     All: <FaListAlt />,
     Open: <FaInbox />,
-    Resolved: <FaCheckCircle />,
-     "No-Response": <FaCheckCircle />,
     "In-Progress": <FaSpinner />,
+    Resolved: <FaCheckCircle />,
+    "No-Response": <FaCheckCircle />,
   };
 
   const queryParams = new URLSearchParams(location.search);
@@ -83,65 +88,102 @@ export default function Tickets() {
     if (location.state?.filterFromDashboard) {
       const statusFromDashboard = location.state.filterFromDashboard;
       if (
-        ["All", "Open", "Resolved", "No-Response","In-Progress"].includes(statusFromDashboard)
+        ["All", "Open", "In-Progress", "Resolved", "No-Response"].includes(
+          statusFromDashboard
+        )
       ) {
         setFilterStatus(statusFromDashboard);
       }
     }
   }, [location.state]);
+  const pageFromQuery = parseInt(queryParams.get("page") || "1", 10);
+  //   useEffect(() => {
+  //     fetchData();
+  //   }, []);
+
+  //   useEffect(() => {
+  //   fetchData(pageFromQuery, filterStatus);
+  // }, [filterStatus, pageFromQuery]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(pageFromQuery, filterStatus);
   }, []);
-  const fetchData = async (page) => {
+
+    useEffect(() => {
+    // Only fetch “All” or status‑filtered if not in date‑filter mode:
+    if (!(fromDate && toDate)) {
+      fetchData(currentPage, filterStatus);
+    }
+  }, [currentPage, filterStatus]);
+
+
+  // useEffect(() => {
+  //   fetchData(currentPage, filterStatus);
+  // }, [currentPage, filterStatus]);
+
+  const fetchData = async (page = 1, status = filterStatus) => {
     setLoading(true);
     try {
-      const [inquiriesResponse, inquiryStatusCount] = await Promise.all([
-        getInquiryByClientId(clientId, page, ticketsPerPage),
-        getInquiryStatusCount(),
-      ]);
+      let response;
+      switch (status) {
+        case "Open":
+          response = await getOpenInquiries(clientId, page, page_size);
+          break;
+        case "In-Progress":
+          response = await getInProgressInquiries(clientId, page, page_size);
+          break;
+        case "Resolved":
+          response = await getResolvedInquiries(clientId, page, page_size);
+          break;
+        case "No-Response":
+          response = await getNoResponseInquiries(clientId, page, page_size);
+          break;
 
-      const inquiries = inquiriesResponse?.data || [];
-      setTickets(inquiries);
-      setTotalPages(
-        Math.ceil(inquiriesResponse.total_records / ticketsPerPage)
-      );
+        default:
+          response = await getInquiryByClientId(clientId, page, page_size);
+          break;
+      }
 
-     const statusCount = { Open: 0, Resolved: 0, Noresponse: 0, Inprogress: 0 };
+      // Normalize response
+      const items = response.inquiries || response.data || [];
+      const totalCount = response.totalCount || response.total_records || 0;
 
-inquiryStatusCount.data.forEach((status) => {
-  switch (status.status) {
-    case "OPN":
-      statusCount.Open = status.status_count;
-      break;
-    case "CRS":
-      statusCount.Resolved = status.status_count;
-      break;
-    case "CNR":
-      statusCount.Noresponse = status.status_count;
-      break;
-    case "INP":
-      statusCount.Inprogress = status.status_count;
-      break;
-    default:
-      break;
-  }
-});
+      setTickets(items);
+      setTotalPages(Math.ceil(totalCount / page_size));
 
-
-      setTicketData({
-        ticket_count: inquiryStatusCount.total_count,
-        Open: statusCount.Open,
-        Resolved: statusCount.Resolved,
-        Noresponse: statusCount.Noresponse,
-        Inprogress: statusCount.Inprogress,
+      // Update status counts
+      const statusCountRaw = await getInquiryStatusCount();
+      const counts = { Open: 0, Inprogress: 0, Resolved: 0, Noresponse: 0 };
+      statusCountRaw.data.forEach((st) => {
+        switch (st.status) {
+          case "OPN":
+            counts.Open = st.status_count;
+            break;
+          case "INP":
+            counts.Inprogress = st.status_count;
+            break;
+          case "CRS":
+            counts.Resolved = st.status_count;
+            break;
+          case "CNR":
+            counts.Noresponse = st.status_count;
+            break;
+        }
       });
-    } catch (error) {
-      console.error("Error fetching data:", error);
+      setTicketData({
+        ticket_count: statusCountRaw.total_count,
+        Open: counts.Open,
+        Inprogress: counts.Inprogress,
+        Resolved: counts.Resolved,
+        Noresponse: counts.Noresponse,
+      });
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     if (statusFromURL) {
       setFilterStatus(statusFromURL);
@@ -149,22 +191,125 @@ inquiryStatusCount.data.forEach((status) => {
   }, [statusFromURL]);
 
   useEffect(() => {
+  // Reset tickets and go back to page 1 when filters change
     setTickets([]);
     setCurrentPage(1);
-    fetchData(1);
+    fetchData(1,filterStatus);
   }, [filterStatus, searchQuery, dateFilter]);
 
-  useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
+  // useEffect(() => {
+  //    if (!fromDate && !toDate) {
+  //      setTickets([]);
+  //     setCurrentPage(1);
+     
+  //    }
+  //  }, [ fromDate, toDate]);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
+  //   useEffect(() => {
+  //     fetchData(currentPage, filterStatus);
+  //   }, [currentPage]);
+
+  // useEffect(() => {
+    // On mount, only call fetchData if NOT in date‐filter mode:
+  //   if (!(fromDate && toDate)) {
+  //     fetchData(pageFromQuery, filterStatus);
+  //   }
+  // }, []);
+
+  // useEffect(() => {
+  //   // Whenever page or status change, only call fetchData if NOT date‐filtering:
+  //   if (!(fromDate && toDate)) {
+  //     fetchData(currentPage, filterStatus);
+  //   }
+  // }, [currentPage, filterStatus, fromDate, toDate]);
+
+  // const handlePageChange = (page) => {
+  //   setCurrentPage(page);
+  //   fetchData(page, filterStatus);
+  // };
+
+    useEffect(() => {
+    if (fromDate && toDate) {
+      (async () => {
+        setLoading(true);
+        try {
+          const response = await getInquiriesByDateRange(
+            fromDate,
+            toDate,
+            clientId,
+            1,
+            page_size
+          );
+          if (response?.status) {
+            setTickets(response.data || []);
+            setCurrentPage(1);
+            setTotalPages(Math.ceil(Number(response.total) / page_size));
+          } else {
+            setTickets([]);
+            setTotalPages(1);
+          }
+        } catch (err) {
+          console.error("Error in date‑range useEffect:", err);
+          setTickets([]);
+          setTotalPages(1);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [fromDate, toDate]);
+   console.log(fromDate, toDate);
+
+       const handlePageChange = async (page) => {
+    
+    if (fromDate && toDate) {
+      // We are in “date-filter” mode → fetch that page from getInquiriesByDateRange
+      setLoading(true);
+      try {
+        const response = await getInquiriesByDateRange(
+          fromDate,
+          toDate,
+          clientId,
+          page,
+          page_size
+        );
+        if (response?.status) {
+          setTickets(response.data || []);
+          setCurrentPage(page);
+          setTotalPages(Math.ceil(Number(response.total) / page_size));
+        } else {
+          console.error(
+            "Invalid response from date range API (pagination)",
+            response
+          );
+          setTickets([]);
+        }
+      } catch (err) {
+        console.error("Error fetching paged date-range:", err);
+        setTickets([]);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Normal status‐based pagination
+      setCurrentPage(page);
+      fetchData(page, filterStatus);
+    }
   };
+
+
 
   const isWithinDateFilter = (createdDate) => {
     if (!createdDate) return false;
     const date = new Date(createdDate);
+
+    // 1) manual from/to override
+    if (fromDate && toDate) {
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+      to.setHours(23, 59, 59, 999);
+      return date >= from && date <= to;
+    }
     const today = new Date();
 
     switch (dateFilter) {
@@ -188,26 +333,6 @@ inquiryStatusCount.data.forEach((status) => {
         return true;
     }
   };
-  // const handleFilter = () => {
-  //   if (!fromDate || !toDate) {
-  //     alert("Please select both From Date and To Date.");
-  //     return;
-  //   }
-
-  //   const from = new Date(fromDate);
-  //   const to = new Date(toDate);
-  //   to.setHours(23, 59, 59, 999);
-
-  //   const filtered = tickets.filter((ticket) => {
-  //     if (!ticket.created_at) return false;
-  //     const ticketDate = new Date(ticket.created_at);
-  //     return ticketDate >= from && ticketDate <= to;
-  //   });
-
-  //   setTickets(filtered); // <-- Optionally update state to show filtered data
-  //   setTotalPages(1); // only one page since it's all filtered data
-  //   setCurrentPage(1);
-  // };
 
   const handleFilter = async () => {
     if (!fromDate || !toDate) {
@@ -215,50 +340,51 @@ inquiryStatusCount.data.forEach((status) => {
       return;
     }
 
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    to.setHours(23, 59, 59, 999);
+
+    if (from > to) {
+      alert("‘From’ date cannot be after ‘To’ date.");
+      return;
+    }
+
     setLoading(true);
-    const allTickets = [];
-    let page = 1;
-    let hasMore = true;
-
     try {
-      while (hasMore) {
-        const response = await getInquiryByClientId(
-          clientId,
-          page,
-          ticketsPerPage
-        );
-        const data = response?.data || [];
-
-        allTickets.push(...data);
-        const totalRecords = response?.total_records || 0;
-        hasMore = allTickets.length < totalRecords;
-        page++;
+      const response = await getInquiriesByDateRange(
+        fromDate,
+        toDate,
+        clientId,
+        1,
+        page_size
+      );
+      if (response?.status) {
+        setTickets(response.data || []);
+        setCurrentPage(1);
+        setTotalPages(Math.ceil(Number(response.total) / page_size));
+      } else {
+        console.error("Invalid response from date range API", response);
+        setTickets([]);
       }
-
-      const from = new Date(fromDate);
-      const to = new Date(toDate);
-      to.setHours(23, 59, 59, 999);
-
-      const filtered = allTickets.filter((ticket) => {
-        const ticketDate = new Date(ticket.created_at);
-
-        return ticketDate >= from && ticketDate <= to;
-      });
-
-      setTickets(filtered);
-      setTotalPages(1);
-      setCurrentPage(1);
     } catch (error) {
-      console.error("Error fetching all data for filtering:", error);
+      console.error("Error fetching inquiries by date range:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // const handleReset = () => {
+  //   setFromDate("");
+  //   setToDate("");
+  //   fetchData(1); // reloads the data with default filters
+  // };
   const handleReset = () => {
     setFromDate("");
     setToDate("");
-    fetchData(1); // reloads the data with default filters
+    setDateFilter("All");
+    setFilterStatus("All");
+    fetchData(1);
+    setCurrentPage(1);
   };
 
   const filteredTickets = Array.isArray(tickets)
@@ -278,35 +404,41 @@ inquiryStatusCount.data.forEach((status) => {
               ? ticket.User_id.toString().includes(searchQuery)
               : false)
         )
-        .filter((ticket) => isWithinDateFilter(ticket.created_at))
+        // .filter((ticket) => isWithinDateFilter(ticket.created_at))
+        .filter((ticket) =>
+          fromDate && toDate ? true : isWithinDateFilter(ticket.created_at)
+        )
     : [];
-
   const getBadgeClass = (statuses) => {
-  const status = statuses?.toLowerCase() || "";
-  if (status.includes("open") || status === "opn") return "badge bg-success";
-  // else if (status.includes("assigned")) return "badge bg-info";
-  else if (status.includes("resolved") || status === "crs") return "badge bg-danger";
-  else if (status.includes("no response") || status === "cnr") return "badge bg-danger";
-  else if (status.includes("in progress") || status === "inp")return "badge bg-warning";
-  else return "badge bg-secondary";
-};
+    const status = statuses?.toLowerCase() || "";
+    if (status.includes("open") || status === "opn") return "badge bg-success";
+    else if (status.includes("in progress") || status === "inp")
+      return "badge bg-warning";
+    // else if (status.includes("assigned")) return "badge bg-info";
+    else if (status.includes("resolved") || status === "crs")
+      return "badge bg-danger";
+    else if (status.includes("no response") || status === "cnr")
+      return "badge bg-danger";
+    else return "badge bg-secondary";
+  };
 
- const getButtonColor = (status) => {
-  if (status === "Open") return "bg-success";
-  if (status === "Resolved") return "bg-danger";
-  if (status === "No-Response") return "bg-danger";
-  if (status === "In-Progress") return "bg-warning";
-  return "bg-secondary";
-};
+  const getButtonColor = (status) => {
+    if (status === "Open") return "bg-success";
+    if (status === "In-Progress") return "bg-warning";
+    if (status === "Resolved") return "bg-danger";
+    if (status === "No-Response") return "bg-danger";
+
+    return "bg-secondary";
+  };
 
   const getTextColorClass = (status) => {
-  const s = (status || "").toLowerCase();
-  if (s.includes("open") || s === "opn") return "text-success";
-  if (s.includes("in progress") || s === "inp") return "text-warning";
-   if (s.includes("resolved") || s === "crs") return "text-danger";
-    if (s.includes("open") || s === "cnr") return "text-danger";
-  return "text-secondary";
-};
+    const s = (status || "").toLowerCase();
+    if (s.includes("open") || s === "opn") return "text-success";
+    if (s.includes("in progress") || s === "inp") return "text-warning";
+    if (s.includes("resolved") || s === "crs") return "text-danger";
+    if (s.includes("no response") || s === "cnr") return "text-danger";
+    return "text-secondary";
+  };
   // const makeToken = (id) =>
   //   encodeURIComponent(CryptoJS.AES.encrypt(id.toString(), SECRET_KEY).toString());
   const makeToken = (id) => {
@@ -323,31 +455,36 @@ inquiryStatusCount.data.forEach((status) => {
   return (
     <div className="container mt-4">
       <div className="row g-2 justify-content-center mb-5">
-        {["All", "Open", "Resolved","No-Response", "In-Progress"].map((status) => {
-          let count = 0;
-          if (status === "All") count = ticketData.ticket_count;
-          else if (status === "Open") count = ticketData.Open;
-          else if (status === "Resolved") count = ticketData.Resolved;
+        {["All", "Open", "In-Progress", "Resolved", "No-Response"].map(
+          (status) => {
+            let count = 0;
+            if (status === "All") count = ticketData.ticket_count;
+            else if (status === "Open") count = ticketData.Open;
+            else if (status === "In-Progress") count = ticketData.Inprogress;
+            else if (status === "Resolved") count = ticketData.Resolved;
             else if (status === "No-Response") count = ticketData.Noresponse;
-          else if (status === "In-Progress") count = ticketData.Inprogress;
-          return (
-            <div key={status} className="col-6 col-md-auto d-flex">
-              <button
-                className={`btn ${
-                  filterStatus === status
-                    ? "btn-primary"
-                    : "btn-outline-primary"
-                } rounded-pill w-100 d-flex align-items-center justify-content-center gap-2`}
-                onClick={() => setFilterStatus(status)}
-              >
-                {statusIcons[status]} {status}
-                <span className={`badge ${getButtonColor(status)} text-light`}>
-                  {count}
-                </span>
-              </button>
-            </div>
-          );
-        })}
+
+            return (
+              <div key={status} className="col-6 col-md-auto d-flex">
+                <button
+                  className={`btn ${
+                    filterStatus === status
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  } rounded-pill w-100 d-flex align-items-center justify-content-center gap-2`}
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {statusIcons[status]} {status}
+                  <span
+                    className={`badge ${getButtonColor(status)} text-light`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              </div>
+            );
+          }
+        )}
       </div>
 
       <div className="row g-2 mb-3">
@@ -432,7 +569,7 @@ inquiryStatusCount.data.forEach((status) => {
           </thead>
           <tbody>
             {loading ? (
-              [...Array(ticketsPerPage)].map((_, index) => (
+              [...Array(page_size)].map((_, index) => (
                 <tr key={index}>
                   <td colSpan="7" className="text-center">
                     <Skeleton height={30} />
@@ -441,12 +578,12 @@ inquiryStatusCount.data.forEach((status) => {
               ))
             ) : filteredTickets.length > 0 ? (
               filteredTickets.map((ticket) => (
-                <tr key={ticket.ticket_id} className="text-center">
+                <tr key={ticket.User_id} className="text-center">
                   <td className="text-start">
                     <Link
                       to={`/agent/components/Userconversation?token=${makeToken(
                         ticket.User_id
-                      )}`}
+                      )}&page=${currentPage}`}
                       className={`text-decoration-none fw-bold ${getTextColorClass(
                         ticket.status
                       )}`}
@@ -483,8 +620,13 @@ inquiryStatusCount.data.forEach((status) => {
                       "N/A"
                     )}
                   </td>
-                  <td className="text-start text-wrap text-break">
+                  {/* <td className="text-start text-wrap text-break">
                     {ticket.agent_remarks ?? "No Remark"}
+                  </td> */}
+                  <td className="text-start text-wrap text-break">
+                    {ticket.agent_remarks
+                      ? ticket.agent_remarks.split(",").pop().trim()
+                      : "No Remark"}
                   </td>
                   <td className="text-start">
                     {ticket.Next_followup

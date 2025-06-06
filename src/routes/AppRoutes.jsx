@@ -17,6 +17,8 @@ import Help from "../pages/agent/components/Help";
 import Tickets from "../pages/agent/components/Tickets";
 import Userconversation from "../pages/agent/components/Userconversation";
 import Selfassesment from "../pages/agent/components/Selfassesment";
+import Notifications from "../pages/agent/components/Notifications";
+import ManageProfile from "../pages/agent/components/ManageProfile";
 
 
 // ✅ Updated imports with correct paths
@@ -25,6 +27,8 @@ import Setup from '../pages/admin/components/Setup';
 import UpdateDelete from '../pages/admin/components/UpdateDelete';
 import AddStaff from '../pages/admin/components/AddStaff';
 import AllStaff from '../pages/admin/components/AllStaff';
+
+
 // ✅ Updated imports with correct paths superadmin
 import Client from '../pages/superadmin/components/Client';
 import AddClient from '../pages/superadmin/components/AddClient';
@@ -59,6 +63,8 @@ const AppRoutes = () => {
   <Route path="components/Tickets" element={<Tickets />} />
   <Route path="components/Userconversation" element={<Userconversation />} />
   <Route path="components/selfassesment" element={<Selfassesment />} />
+  <Route path="components/Notifications" element={<Notifications />} />
+   <Route path="components/manageprofile" element={<ManageProfile />} />
 </Route>
 
 

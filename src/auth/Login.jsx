@@ -45,10 +45,11 @@ const Login = () => {
       setUser(mockUser);
       navigate('/superadmin');
       return;
-    } else {
-      // Handle invalid login attempt
-      toast.error('Invalid credentials');  // Display toast error message
     }
+    // } else {
+    //   // Handle invalid login attempt
+    //   toast.error('Invalid credentials');  // Display toast error message
+    // }
 
     if (!validatePassword(password)) return;
 
@@ -67,7 +68,9 @@ const Login = () => {
         };
 
         setUser(userInfo);
+        console.log("Storing to localStorage: user_id =", user_id, " clientId =", client_id);
         localStorage.setItem("clientId", client_id); // store clientId if needed
+         localStorage.setItem("user_id", user_id); 
 
         if (abbreviation === 'A') {
           navigate('/admin');

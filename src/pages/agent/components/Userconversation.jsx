@@ -4,6 +4,10 @@ import {
   updateInquiry,
   getUserInquiry,
   getInquiryByClientId,
+  getOpenInquiries,
+  getInProgressInquiries,
+  getNoResponseInquiries,
+  getResolvedInquiries,
 } from "../../../services/AgentServices";
 import {
   FaArrowLeft,
@@ -41,6 +45,7 @@ const UserConversation = () => {
   const [statusError, setStatusError] = useState("");
   const [followUpError, setFollowUpError] = useState("");
   const [originalStatusCode, setOriginalStatusCode] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("All");
 
   const queryParams = new URLSearchParams(useLocation().search);
   const token = queryParams.get("token");
@@ -89,11 +94,11 @@ const UserConversation = () => {
         return;
       }
 
-      const page = 1;
-      const pageSize = 10;
+      const page = parseInt(queryParams.get("page") || "1", 10);
+      const page_size = 10;
 
       const [inquiries, userInquiry] = await Promise.all([
-        getInquiryByClientId(clientId, page, pageSize),
+        getInquiryByClientId(clientId, page, page_size),
         getUserInquiry(decryptedUserId, clientId),
       ]);
 
@@ -109,71 +114,58 @@ const UserConversation = () => {
           )
         : null;
 
-      if (!inquiryData) {
+      let finalInquiry = inquiryData;
+      if (!finalInquiry && userInquiry?.success) {
+        finalInquiry = {
+          id: userInquiry.id,
+          Client_name: userInquiry.Client_name,
+          contact: userInquiry.contact,
+          email: userInquiry.email,
+          created_at: userInquiry.created_at,
+          updated_at: userInquiry.updated_at,
+          last_question: userInquiry.lastQuestion,
+          conversation_duration: userInquiry.conversation_duration,
+          p_agent_remarks: userInquiry.agent_remarks,
+          p_status: userInquiry.status_code,
+          p_Next_followup: userInquiry.Next_followup,
+          User_id: userInquiry.User_id,
+        };
+      }
+
+      if (!finalInquiry) {
         setError("No inquiry data found for this user.");
         setLoading(false);
         return;
       }
 
-      console.log("📋 inquiryData raw:", inquiryData);
-      if (inquiryData) {
-        console.log(" - agent_remarks?:", inquiryData.agent_remarks);
-        console.log(" - p_agent_remarks?:", inquiryData.p_agent_remarks);
-        console.log(" - status?:", inquiryData.status);
-        console.log(" - p_status?:", inquiryData.p_status);
-        console.log(" - Next_followup?:", inquiryData.Next_followup);
-        console.log(" - p_Next_followup?:", inquiryData.p_Next_followup);
-      }
+      console.log("📋 finalinquiry:", finalInquiry);
+      const lastQuestionText =
+        finalInquiry.last_question?.text ||
+        finalInquiry.lastQuestion?.text ||
+        "";
 
-      if (userInquiry) {
+      if (finalInquiry) {
         const mergedData = {
-          id: inquiryData.id,
-          clientName: inquiryData.client_name,
-          contact: inquiryData.contact,
-          email: inquiryData.email,
-          created_at: inquiryData.created_at,
-          updated_at: inquiryData.updated_at,
-          last_question: inquiryData.last_question,
-          conversation_duration: inquiryData.conversation_duration,
-          User_id: inquiryData.User_id,
+          ...finalInquiry,
+          ...userInquiry,
+          last_question: { text: lastQuestionText },
+          id: finalInquiry.id,
+          Client_name: finalInquiry.Client_name,
+          contact: finalInquiry.contact,
+          email: finalInquiry.email,
+          created_at: finalInquiry.created_at,
+          updated_at: finalInquiry.updated_at,
+
+          conversation_duration: finalInquiry.conversation_duration,
+          User_id: finalInquiry.User_id,
           Next_followup:
-            inquiryData.p_Next_followup ?? inquiryData.p_Next_followup,
+            finalInquiry.p_Next_followup ?? finalInquiry.Next_followup,
           agent_remarks:
-            inquiryData.p_agent_remarks ?? inquiryData.p_agent_remarks,
-          status_code: inquiryData.p_status ?? inquiryData.p_status,
+            finalInquiry.p_agent_remarks ?? finalInquiry.agent_remarks,
+          status_code: finalInquiry.p_status ?? finalInquiry.status,
         };
 
-        if (userInquiry?.success) {
-          mergedData.id = inquiryData.id || mergedData.id;
-          mergedData.Client_name =
-            inquiryData.Client_name || mergedData.Client_name;
-          mergedData.contact = inquiryData.contact || mergedData.contact;
-          mergedData.email = inquiryData.email || mergedData.email;
-          mergedData.last_question =
-            userInquiry.lastQuestion || inquiryData.last_question;
-          mergedData.conversation_duration =
-            inquiryData.conversationDuration ||
-            mergedData.conversation_duration;
-          mergedData.User_id = inquiryData.User_id || mergedData.User_id;
-
-          mergedData.created_at =
-            inquiryData.created_at || mergedData.created_at;
-          mergedData.updated_at =
-            inquiryData.updated_at || mergedData.updated_at;
-          mergedData.agent_remarks =
-            inquiryData.p_agent_remarks ??
-            inquiryData.agent_remarks ??
-            mergedData.agent_remarks;
-          mergedData.status_code =
-            inquiryData.p_status ??
-            inquiryData.status ??
-            mergedData.status_code;
-          mergedData.Next_followup =
-            inquiryData.Next_followup ??
-            inquiryData.Next_followup ??
-            mergedData.Next_followup;
-        }
-        console.log("inquiryData", inquiryData);
+        console.log("finalInquiry", finalInquiry);
         setInquiry(mergedData);
         setOriginalStatusCode(mergedData.status_code);
         console.log("mergedData", mergedData);
@@ -206,6 +198,9 @@ const UserConversation = () => {
   useEffect(() => {
     fetchData();
   }, [location.search]);
+  //  useEffect(() => {
+  //    fetchData(currentPage, filterStatus);
+  //  }, [ filterStatus,location.search]);
 
   const canCloseTicket = () => {
     if (!inquiry?.Next_followup) return true;
@@ -357,7 +352,7 @@ const UserConversation = () => {
         p_Client_name: inquiry.Client_name ?? inquiry.Client_name ?? "no",
         p_contact: inquiry.contact ?? "no",
         p_email: inquiry.email ?? "no",
-        p_last_question: inquiry.last_question ?? "",
+        p_last_question: inquiry.lastQuestion ?? "",
         p_agent_remarks: agentRemarks,
         p_Next_followup: followUpDate,
         p_created_at: inquiry.created_at ?? "no",
@@ -365,6 +360,14 @@ const UserConversation = () => {
       }
     : null;
   console.log("inquirydetails", inquiryDetails);
+
+  useEffect(() => {
+    if (inquiry?.p_agent_remarks) {
+      const remarksArray = inquiry.p_agent_remarks.split(",");
+      const lastRemark = remarksArray[remarksArray.length - 1].trim();
+      setAgentRemarks(lastRemark); // Show only the latest remark
+    }
+  }, [inquiry]);
 
   return (
     <div className="container my-4">
@@ -469,7 +472,7 @@ const UserConversation = () => {
           <table className="table table-bordered h-100 mt-3">
             <thead>
               <tr>
-                <th >
+                <th>
                   Last Response from "
                   {inquiry?.Client_name
                     ? inquiry.Client_name.charAt(0).toUpperCase() +
@@ -480,11 +483,10 @@ const UserConversation = () => {
               </tr>
             </thead>
             <tbody>
-              {inquiry && inquiry.last_question ? (
+              {inquiry && inquiry.lastQuestion && inquiry.lastQuestion.text ? (
                 <tr>
-                  <td  className="text-black">
-                    <strong>Last Response :</strong>{" "}
-                    {inquiry.last_question.text}
+                  <td className="text-black">
+                    <strong>Last Response :</strong> {inquiry.lastQuestion.text}
                   </td>
                 </tr>
               ) : (
@@ -495,6 +497,30 @@ const UserConversation = () => {
                   </td>
                 </tr>
               )}
+
+              {/* Past Remarks inside the same table */}
+              <tr>
+                <td>
+                  <strong>Past Remarks:</strong>
+                  {inquiry?.p_agent_remarks &&
+                  inquiry.p_agent_remarks.split(",").length > 1 ? (
+                    <ul className="list-group mt-2">
+                      {inquiry.p_agent_remarks
+                        .split(",")
+                        .slice(0, -1) // Exclude the latest remark
+                        .map((remark, idx) => (
+                          <li key={idx} className="list-group-item">
+                            {remark.trim()}
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <div className="text-muted mt-2">
+                      No past remarks available.
+                    </div>
+                  )}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -513,7 +539,12 @@ const UserConversation = () => {
               <textarea
                 className="form-control"
                 rows="3"
-                value={agentRemarks}
+                // value={agentRemarks}
+                value={
+                  agentRemarks
+                    ? agentRemarks.split(",").slice(-1)[0].trim()
+                    : ""
+                }
                 onChange={(e) => {
                   const input = e.target.value;
                   const capitalized =
