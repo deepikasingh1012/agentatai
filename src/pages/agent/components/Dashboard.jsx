@@ -1,226 +1,4 @@
-// import React, { useState, useEffect } from "react";
-// import Skeleton from "react-loading-skeleton";
-// import { useNavigate} from "react-router-dom";
-// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-// import {
-//   BarChart,
-//   Bar,
-//   XAxis,
-//   YAxis,
-//   CartesianGrid,
-//   Tooltip,
-//   Legend,
-//   Cell,
-//   PieChart,
-//   Pie,
-//   ResponsiveContainer,
-// } from "recharts";
-// import {
-//   faBriefcase,
-//   faEnvelope,
-//   faCheckCircle,
-//   faSpinner,
-// } from "@fortawesome/free-solid-svg-icons";
-// import { getInquiryStatusCount } from "../../../services/AgentServices";
-
-// const links = [
-//   {
-//     name: "Total",
-//     url: "/TotalTicket",
-//     icon: faBriefcase,
-//     bgColor: "bg-primary",
-//   },
-//   {
-//     name: "Opened",
-//     url: "/OpenedTicket",
-//     icon: faEnvelope,
-//     bgColor: "bg-success",
-//   },
-//   {
-//     name: "Closed",
-//     url: "/ClosedTicket",
-//     icon: faCheckCircle,
-//     bgColor: "bg-danger",
-//   },
-//   {
-//     name: "Inprogress",
-//     url: "/InprogressTicket",
-//     icon: faSpinner,
-//     bgColor: "bg-warning",
-//   },
-// ];
-
-// const COLORS = ["#007bff", "#28a745", "#dc3545", "#ffc107"];
-// const clientId = localStorage.getItem("clientId");
-// export default function Dashboard() {
-//   const [ticketData, setTicketData] = useState({
-//     total_count: 0,
-//     Opened: 0,
-//     Closed: 0,
-//     Inprogress: 0,
-//   });
-//   const navigate = useNavigate();
-
-// const handleBarClick = (statusName) => {
-//   navigate("/agent/components/Tickets", { state: { filterFromDashboard: statusName } });
-// };
-
-//   const fetchData = async () => {
-//     setLoading(true);
-//     try {
-//       const inquiryStatus = await getInquiryStatusCount();
-
-//       let opened = 0;
-//       let closed = 0;
-//       let inprogress = 0;
-
-//       inquiryStatus.data.forEach((item) => {
-//         switch (item.status) {
-//           case "OPN":
-//             opened = item.status_count;
-//             break;
-//           // case 'CLS':
-//           case "CRS":
-//           case "CNR":
-//             closed += item.status_count;
-//             break;
-//           case "INP":
-//             inprogress = item.status_count;
-//             break;
-//           default:
-//             break;
-//         }
-//       });
-
-//       setTicketData({
-//         total_count: inquiryStatus.total_count,
-//         Opened: opened,
-//         Closed: closed,
-//         Inprogress: inprogress,
-//       });
-//     } catch (error) {
-//       console.error("Error fetching data:", error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const [loading, setLoading] = useState(false);
-
-//   useEffect(() => {
-//     fetchData();
-//   }, []);
-
-//   const barChartData = [
-//     { name: "Total", count: ticketData.total_count, fill: "#007bff" },
-//     { name: "Opened", count: ticketData.Opened, fill: "#28a745" },
-//     { name: "Closed", count: ticketData.Closed, fill: "#dc3545" },
-//     { name: "Inprogress", count: ticketData.Inprogress, fill: "#ffc107" },
-//   ];
-
-//   const pieChartData = [
-//     { name: "Total", value: ticketData.total_count },
-//     { name: "Opened", value: ticketData.Opened },
-//     { name: "Closed", value: ticketData.Closed },
-//     { name: "Inprogress", value: ticketData.Inprogress },
-//   ];
-
-//   return (
-//     <div className="container-fluid">
-//       <h4 className="text-center text-primary mt-4">Tickets Analysis</h4>
-
-//       <div className="row mt-4">
-//         <div className="col-12">
-//           <div className="card p-3">
-//             {loading ? (
-//               <Skeleton height={100} />
-//             ) : (
-//               <ResponsiveContainer width="100%" height={260}>
-//                 <BarChart
-//                   data={barChartData}
-//                   margin={{ top: 10, right: 100, left: 0, bottom: 5 }}
-//                 >
-//                   <CartesianGrid strokeDasharray="3 3" />
-//                   <XAxis dataKey="name" />
-//                   <YAxis />
-//                   <Tooltip />
-//                   <Legend />
-//                   <Bar
-//                     dataKey="count"
-//                     name="Ticket Count"
-//                     barSize={80}
-//                     onClick={({ name }) => handleBarClick(name)}
-//                   >
-//                     {barChartData.map((entry, index) => (
-//                       <Cell key={`cell-${index}`} fill={entry.fill} />
-//                     ))}
-//                   </Bar>
-//                 </BarChart>
-//               </ResponsiveContainer>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-
-//       <div className="row mt-4">
-//         <div className="col-md-6">
-//           <div className="card p-3">
-//             <h5 className="text-center">Ticket Summary</h5>
-//             <ul className="list-group">
-//               {pieChartData.map((item, index) => (
-//                 <li
-//                   key={index}
-//                   className="list-group-item d-flex justify-content-between align-items-center"
-//                   style={{
-//                     color: COLORS[index % COLORS.length],
-//                     fontWeight: "bold",
-//                   }}
-//                 >
-//                   {item.name}
-//                   <span className="badge bg-secondary">{item.value}</span>
-//                 </li>
-//               ))}
-//             </ul>
-//           </div>
-//         </div>
-
-//         <div className="col-md-6">
-//           <div className="card p-3">
-//             {loading ? (
-//               <Skeleton height={100} />
-//             ) : (
-//               <ResponsiveContainer width="100%" height={260}>
-//                 <PieChart>
-//                   <Pie
-//                     data={pieChartData}
-//                     dataKey="value"
-//                     nameKey="name"
-//                     cx="50%"
-//                     cy="50%"
-//                     outerRadius={82}
-//                     fill="#8884d8"
-//                     label
-//                   >
-//                     {pieChartData.map((_, index) => (
-//                       <Cell
-//                         key={`cell-${index}`}
-//                         fill={COLORS[index % COLORS.length]}
-//                       />
-//                     ))}
-//                   </Pie>
-//                   <Tooltip />
-//                   <Legend />
-//                 </PieChart>
-//               </ResponsiveContainer>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import Skeleton from "react-loading-skeleton";
 import { useNavigate } from "react-router-dom";
 import {
@@ -242,49 +20,60 @@ import {
   faCheckCircle,
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import { getInquiryStatusCount } from "../../../services/AgentServices";
+import { getInquiryStatusCount,    getTodaysFollowups } from "../../../services/AgentServices";
 import { FaListAlt, FaInbox, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import { toast, ToastContainer, Slide } from "react-toastify"; 
+import "react-toastify/dist/ReactToastify.css";
 
-const COLORS = ["#283593", "#a4b2dc", "#303F9F", "#6679bf"];
+
+const COLORS = ["#AEB0B2", "#85898C", "#5D6166", "#343A40"];
 // const renderCustomizedLabel = ({ percent }) => `${(percent * 100).toFixed(0)}%`;
 
 const Dashboard = () => {
   const [ticketData, setTicketData] = useState({
     total_count: 0,
     Open: 0,
+    Inprogress: 0,
     Resolved: 0,
     Noresponse: 0,
-    Inprogress: 0,
   });
+
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const iconMap = {
     Open: <FaInbox />,
+    "In-Progress": <FaSpinner />,
     Resolved: <FaCheckCircle />,
     "No-Response": <FaCheckCircle />,
-    "In-Progress": <FaSpinner />,
   };
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-  const radius = innerRadius + (outerRadius - innerRadius) / 2;
-  const RADIAN = Math.PI / 180;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    index,
+  }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) / 2;
+    const RADIAN = Math.PI / 180;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize={12}
-    >
-      {(percent * 100).toFixed(0)}%
-    </text>
-  );
-};
-
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={12}
+      >
+        {(percent * 100).toFixed(0)}%
+      </text>
+    );
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -292,14 +81,17 @@ const Dashboard = () => {
       const inquiryStatus = await getInquiryStatusCount();
 
       let open = 0;
+      let inprogress = 0;
       let resolved = 0;
       let noresponse = 0;
-      let inprogress = 0;
 
       inquiryStatus.data.forEach((item) => {
         switch (item.status) {
           case "OPN":
             open = item.status_count;
+            break;
+          case "INP":
+            inprogress = item.status_count;
             break;
           case "CRS":
             resolved = item.status_count;
@@ -307,9 +99,7 @@ const Dashboard = () => {
           case "CNR":
             noresponse = item.status_count;
             break;
-          case "INP":
-            inprogress = item.status_count;
-            break;
+
           default:
             break;
         }
@@ -318,10 +108,11 @@ const Dashboard = () => {
       setTicketData({
         total_count: inquiryStatus.total_count,
         Open: open,
+        Inprogress: inprogress,
         Resolved: resolved,
         Noresponse: noresponse,
-        Inprogress: inprogress,
       });
+  
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -329,9 +120,56 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+
+    useEffect(() => {
+          toast.dismiss();
+    const clientId = localStorage.getItem("clientId");
+    const userId = localStorage.getItem("user_id");
+
+    if (clientId && userId) {
+      getTodaysFollowups(clientId)
+        .then(({ success, followups }) => {
+          if (success && followups.length > 0) {
+            toast.info(
+              ({ closeToast }) => (
+                <div>
+                  <p>You have {followups.length} follow-ups scheduled today.</p>
+                  <div className="d-flex justify-content-end gap-2 mt-2">
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => {
+                        closeToast();
+                        navigate(`/agent/components/Notifications`);
+                      }}
+                    >
+                      OK
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                       onClick={() => {
+                        closeToast();
+                        navigate(`/agent/components/Tickets`);
+                       }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ),
+              {
+                //  autoClose: false,
+                closeOnClick: false,
+                draggable: false,
+                closeButton: true,
+                transition: Slide,
+              }
+            );
+          }
+        })
+      .catch((err) => console.error("Error fetching today's followups:", err));
+  }
+  fetchData();
+}, []);
 
   const handleBarClick = (statusName) => {
     navigate("/agent/components/Tickets", {
@@ -340,37 +178,40 @@ const Dashboard = () => {
   };
 
   const handlePieClick = (_, index) => {
-    const statusMap = ["Open", "Resolved", "No-Response", "In-Progress"];
+    const statusMap = ["Open", "In-Progress", "Resolved", "No-Response"];
     navigate("/agent/components/Tickets", {
       state: { filterFromDashboard: statusMap[index] },
     });
   };
 
   const barChartData = [
-    { name: "Total", count: ticketData.total_count, fill: "#007bff" },
-    { name: "Open", count: ticketData.Open, fill: "#a4b2dc" },
-    { name: "Resolved", count: ticketData.Resolved, fill: "#303F9F" },
-    { name: "No-Response", count: ticketData.Noresponse, fill: "#303F9F" },
-    { name: "In-Progress", count: ticketData.Inprogress, fill: "#6679bf" },
+    // { name: "Total", count: ticketData.total_count, fill: "#007bff" },
+
+    { name: "Open", count: ticketData.Open, fill: "#AEB0B2" },
+    { name: "In-Progress", count: ticketData.Inprogress, fill: "#85898C" },
+    { name: "Resolved", count: ticketData.Resolved, fill: "#5D6166" },
+    { name: "No-Response", count: ticketData.Noresponse, fill: "#343A40" },
   ];
 
   const donutChartData = [
     { name: "Open", value: ticketData.Open },
+    { name: "In-Progress", value: ticketData.Inprogress },
     { name: "Resolved", value: ticketData.Resolved },
     { name: "No-Response", value: ticketData.Noresponse },
-    { name: "In-Progress", value: ticketData.Inprogress },
   ];
 
   const pieChartData = donutChartData;
   const totalTickets =
     ticketData.Resolved +
+    ticketData.Inprogress +
     ticketData.Noresponse +
-    ticketData.Open +
-    ticketData.Inprogress;
+    ticketData.Open;
 
   return (
-    <div className="container-fluid">
-      <h4 className="text-center text-primary mt-4">Ticket Insights</h4>
+    <div className="container-fluid  position-relative" >
+       <ToastContainer position="top-end" className="p-3" transition={Slide} />{" "}
+     
+      <h4 className="text-center text-primary mt-0">Ticket Insights</h4>
 
       <div className="row mt-4 d-flex align-items-stretch">
         <div className="col-12">
@@ -452,6 +293,8 @@ const Dashboard = () => {
                       onClick={handlePieClick}
                       label={renderCustomizedLabel}
                       labelLine={false}
+                      startAngle={360} // <-- makes it anticlockwise
+                      endAngle={0} // <-- makes it anticlockwise
                     >
                       {donutChartData.map((entry, index) => (
                         <Cell
@@ -462,6 +305,7 @@ const Dashboard = () => {
                         />
                       ))}
                     </Pie>
+
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>

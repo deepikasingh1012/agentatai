@@ -2,8 +2,8 @@
 import axios from "axios";
  
 // import { getClientId } from '../services/Service';
-const API_URL = "https://dev-atai-api.raghavsolars.com";
- 
+const API_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
+//  const API_URL = "https://api.ataibot.in/public/";
  
  
  

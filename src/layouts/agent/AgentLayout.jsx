@@ -25,6 +25,8 @@ const AgentLayout = () => {
         return "Callback Requests";
       case "/agent/components/Selfassesment":
         return "Self Assessment Report";
+              case "/agent/components/ManageProfile":
+        return "My Profile";
       case "/agent/components/help":
         return "Help and Support";
       default:
