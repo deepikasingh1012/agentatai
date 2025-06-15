@@ -63,7 +63,9 @@ const Dragdrop = () => {
   };
   
   
-  const clientId = localStorage.getItem("clientId");
+  // const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
+
 
 useEffect(() => {
   if (clientId) {
@@ -292,9 +294,7 @@ const onDragEnd = (result) => {
 
   return (
     <div className="container-fluid mt-4" style={{ maxHeight: "80vh", overflowY: "auto" }}>
-    {loading ? (
-      <p className="text-center">Loading questions...</p>
-    ) : (
+    {loading ? null : (
       <>
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="table-responsive" style={{ maxHeight: "60vh", overflowY: "auto" }}>
@@ -305,6 +305,7 @@ const onDragEnd = (result) => {
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                 >
+  
                   <thead className="table-dark sticky-top">
                     <tr>
                       <th>Level</th>

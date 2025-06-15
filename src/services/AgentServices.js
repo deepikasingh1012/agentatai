@@ -29,7 +29,7 @@ const fetchData = async (method, url, data = {}) => {
 
 // 🎯 Inquiry Status Count
 export const getInquiryStatusCount = async () => {
-  const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
   try {
     const response = await axios.get(
       `${BASE_URL}/inquiry/status-count/${clientId}`
@@ -59,12 +59,12 @@ export const verifyUserCredentials = async (credentials) => {
     const { user_id, client_id, role, username, user_name, abbreviation } = response.data;
 
     // ✅ Store relevant data in localStorage
-    localStorage.setItem("user_id", user_id);
-    localStorage.setItem("client_id", client_id);
-    localStorage.setItem("role", role);
-    localStorage.setItem("email", username);
-    localStorage.setItem("name", user_name);
-    localStorage.setItem("abbreviation", abbreviation);
+    sessionStorage.setItem("userId", user_id);
+    sessionStorage.setItem("client_id", client_id);
+    sessionStorage.setItem("role", role);
+    sessionStorage.setItem("email", username);
+    sessionStorage.setItem("name", user_name);
+    sessionStorage.setItem("abbreviation", abbreviation);
   }
 
   return response;
@@ -96,13 +96,16 @@ export const getInquiryByClientId = async (
 
 export const updateInquiry = async ({
   p_id,
+  user_id,
   p_status,
   p_agent_remarks,
   p_Next_followup,
+
 }) => {
   try {
     const response = await axios.put(`${BASE_URL}/update-inquiry`, {
       p_id,
+      user_id,
       p_status,
       p_agent_remarks,
       p_Next_followup,
@@ -123,7 +126,7 @@ export const getUserInquiry = async (userId, clientId) => {
 
     const response = await axios.get(`${BASE_URL}/user-inquiry`, {
       params: {
-        user_id: trimmedUserId,
+        User_id: trimmedUserId,
         client_id: clientId,
       },
     });
@@ -134,6 +137,7 @@ export const getUserInquiry = async (userId, clientId) => {
         success: true,
         id: inquiry.id,
         User_id: inquiry.User_id,
+        user_id: inquiry.user_id,
         Client_name: inquiry.Client_name, 
         contact: inquiry.contact,
         email: inquiry.email,
@@ -406,4 +410,42 @@ export const getTodaysFollowups = async (clientId) => {
     return { success: false, followups: [] };
   }
 };
+export const logoutUser = async (userId) => {
+  if (!userId) {
+    throw new Error("User ID is required to logout.");
+  }
 
+  const response = await fetchData("POST", "/logout", {
+    user_id: userId,
+  });
+
+  return response;
+};
+export const getInquiryDuration = async (p_id) => {
+  if (!p_id) {
+    throw new Error("getInquiryDuration: 'p_id' is required.");
+  }
+
+  try {
+    const response = await axios.get(`${BASE_URL}/get-inquiry-duration`, {
+      params: { p_id },
+    });
+console.log("🔍 API /get-inquiry-duration →", response.data);
+    if (response && response.data) {
+      return {
+        success: true,
+        inquiryId: response.data.inquiry_id,
+        startedAt: response.data.started_at,
+        endedAt: response.data.ended_at,
+        duration: response.data.duration,
+        status: response.data.status,
+      };
+    } else {
+      console.error("Unexpected response structure from get-inquiry-duration:", response);
+      return { success: false, data: null };
+    }
+  } catch (error) {
+    console.error("Error fetching inquiry duration:", error);
+    return { success: false, data: null };
+  }
+};

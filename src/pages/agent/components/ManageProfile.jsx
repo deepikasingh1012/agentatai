@@ -5,7 +5,7 @@ function ManageProfile() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const user_id = localStorage.getItem("user_id");
+  const user_id = sessionStorage.getItem("userId");
 
   useEffect(() => {
     if (!user_id) return;

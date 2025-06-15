@@ -23,11 +23,23 @@ const UpdateDelete = () => {
     const [editingId, setEditingId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10; // ✅ Show 10 entries per page
-    const clientId = localStorage.getItem("clientId");
+    // const clientId = localStorage.getItem("clientId");
+      const clientId = sessionStorage.getItem("clientId");
     const [modal, setModal] = useState({ show: false, message: "", onConfirm: null });
     useEffect(() => {
         fetchQuestions();
     }, []);
+
+useEffect(() => {
+    if (questions.length === 0) {
+        setCurrentPage(0);
+    } else if (currentPage === 0) {
+        setCurrentPage(1);
+    } else if (currentPage > Math.ceil(questions.length / itemsPerPage)) {
+        setCurrentPage(Math.ceil(questions.length / itemsPerPage));
+    }
+}, [questions]);
+
 
     const fetchQuestions = async () => {
         try {
@@ -81,75 +93,78 @@ const UpdateDelete = () => {
         }
     };
 
-    const handleDelete = (question) => {
-        if (!question || typeof question !== "object" || !question.id) {
-            setModal({ show: true, message: "❌ Invalid question data. Cannot delete." });
-            return;
-        }
+    // const handleDelete = (question) => {
+    //     if (!question || typeof question !== "object" || !question.id) {
+    //         setModal({ show: true, message: "❌ Invalid question data. Cannot delete." });
+    //         return;
+    //     }
     
-        const {
-            id: p_id,
-            question_text: p_question_text,
-            question_label: p_question_label,
-            question_type: p_question_type,
-            question_level: p_question_level,
-            question_parent_level: p_question_parent_level,
-        } = question;
+    //     const {
+    //         id: p_id,
+    //         question_text: p_question_text,
+    //         question_label: p_question_label,
+    //         question_type: p_question_type,
+    //         question_level: p_question_level,
+    //         question_parent_level: p_question_parent_level,
+    //     } = question;
     
-        const p_client_id = localStorage.getItem("clientId");
+    //     const p_client_id = localStorage.getItem("clientId");
     
-        if (p_question_level === 1 && p_question_parent_level === 0) {
-            setModal({ show: true, message: "❌ This question cannot be deleted!" });
-            return;
-        }
+    //     if (p_question_level === 1 && p_question_parent_level === 0) {
+    //         setModal({ show: true, message: "❌ This question cannot be deleted!" });
+    //         return;
+    //     }
     
-        setModal({
-            show: true,
-            message: `⚠️ Are you sure you want to delete Question ID: ${p_id}?`,
-            onConfirm: async () => {
-                try {
-                    const response = await deleteQuestion({
-                        action_type: "D",
-                        p_id,
-                        p_question_text: p_question_text || "No Text Available",
-                        p_question_label: p_question_label || "",
-                        p_question_type,
-                        p_client_id,
-                        p_question_level,
-                        p_question_parent_level,
-                    });
+    //     setModal({
+    //         show: true,
+    //         message: `⚠️ Are you sure you want to delete Question ID: ${p_id}?`,
+    //         onConfirm: async () => {
+    //             try {
+    //                 const response = await deleteQuestion({
+    //                     action_type: "D",
+    //                     p_id,
+    //                     p_question_text: p_question_text || "No Text Available",
+    //                     p_question_label: p_question_label || "",
+    //                     p_question_type,
+    //                     p_client_id,
+    //                     p_question_level,
+    //                     p_question_parent_level,
+    //                 });
     
-                    const resMessage = response?.message?.toLowerCase() || "";
+    //                 const resMessage = response?.message?.toLowerCase() || "";
     
-                    if (response?.success || resMessage.includes("deleted") || resMessage.includes("success")) {
-                        setModal({
-                            show: true,
-                            message: "✅ Question deleted successfully!",
-                            onConfirm: () => {
-                                setModal({ show: false });
-                                setQuestions(prev => prev.filter(q => q.id !== p_id));
-                            },
+    //                 if (response?.success || resMessage.includes("deleted") || resMessage.includes("success")) {
+    //                     setModal({
+    //                         show: true,
+    //                         message: "✅ Question deleted successfully!",
+    //                         onConfirm: () => {
+    //                             setModal({ show: false });
+    //                             setQuestions(prev => prev.filter(q => q.id !== p_id));
+    //                         },
                             
-                        });
-                    } else {
-                        setModal({ show: true, message: `❌ Delete failed: ${response?.message || "Unknown error"}` });
-                    }
-                } catch (error) {
-                    console.error("❌ Error deleting question:", error.response?.data || error.message);
-                    setModal({
-                        show: true,
-                        message: `❌ Delete failed: ${error.response?.data?.message || "Unknown error"}`,
-                    });
-                }
-            },
-        });
-    };
+    //                     });
+    //                 } else {
+    //                     setModal({ show: true, message: `❌ Delete failed: ${response?.message || "Unknown error"}` });
+    //                 }
+    //             } catch (error) {
+    //                 console.error("❌ Error deleting question:", error.response?.data || error.message);
+    //                 setModal({
+    //                     show: true,
+    //                     message: `❌ Delete failed: ${error.response?.data?.message || "Unknown error"}`,
+    //                 });
+    //             }
+    //         },
+    //     });
+    // };
+    
     
     
 
 
     // ✅ Pagination logic
-    const totalPages = Math.ceil(questions.length / itemsPerPage);
+    // const totalPages = Math.ceil(questions.length / itemsPerPage);
+    const totalPages = questions.length === 0 ? 0 : Math.ceil(questions.length / itemsPerPage);
+
     const paginatedQuestions = questions.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
@@ -157,17 +172,17 @@ const UpdateDelete = () => {
 
     return (
         <div className="container py-4">
-            <h2 className="text-center mb-4">Manage Questions</h2>
+            <h2 className="text-center mb-4">Manage Options</h2>
             <div className="table-responsive">
                 <table className="table table-bordered table-striped table-hover">
                     <thead className="table-primary text-center">
                         <tr>
                             <th>ID</th>
-                            <th>Question Text</th>
-                            <th>Question Label</th>
-                            <th>Type</th>
+                            <th>Text Option</th>
+                            <th>Option Label</th>
+                            {/* <th>Type</th>
                             <th>Level</th>
-                            <th>Parent Level</th>
+                            <th>Parent Level</th> */}
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -200,9 +215,9 @@ const UpdateDelete = () => {
                                             q.question_label
                                         )}
                                     </td>
-                                    <td>{q.question_type}</td>
+                                    {/* <td>{q.question_type}</td>
                                     <td>{q.question_level}</td>
-                                    <td>{q.question_parent_level}</td>
+                                    <td>{q.question_parent_level}</td> */}
                                     <td>
                                         <div className="d-flex justify-content-center align-items-center gap-2">
                                             {editingId === q.id ? (
@@ -223,7 +238,7 @@ const UpdateDelete = () => {
                                                 </button>
                                             )}
 
-                                            {q.question_level === 1 && q.question_parent_level === 0 ? (
+                                            {/* {q.question_level === 1 && q.question_parent_level === 0 ? (
                                                 <button
                                                     className="btn btn-sm btn-secondary text-muted"
                                                     title="Cannot Delete"
@@ -239,7 +254,7 @@ const UpdateDelete = () => {
                                                 >
                                                     <FaTrash />
                                                 </button>
-                                            )}
+                                            )} */}
                                         </div>
                                     </td>
 
@@ -280,23 +295,18 @@ const UpdateDelete = () => {
             )}
 
             {/* Pagination */}
-            <div className="d-flex justify-content-center align-items-center gap-3 mt-3">
-                <button
-                    className="btn btn-primary"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                >
-                    Previous
-                </button>
-                <span><strong>Page {currentPage} of {totalPages}</strong></span>
-                <button
-                    className="btn btn-primary"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                >
-                    Next
-                </button>
-            </div>
+            <div className="d-flex justify-content-center align-items-center gap-2 mt-3 flex-wrap">
+    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+        <button
+            key={pageNumber}
+            className={`btn btn-sm ${currentPage === pageNumber ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setCurrentPage(pageNumber)}
+        >
+            {pageNumber}
+        </button>
+    ))}
+</div>
+
         </div>
     );
 };

@@ -4,10 +4,8 @@ import {
   updateInquiry,
   getUserInquiry,
   getInquiryByClientId,
-  getOpenInquiries,
-  getInProgressInquiries,
-  getNoResponseInquiries,
-  getResolvedInquiries,
+  fetchUserById,
+  getInquiryDuration,
 } from "../../../services/AgentServices";
 import {
   FaArrowLeft,
@@ -16,7 +14,6 @@ import {
   FaUser,
   FaEnvelope,
   FaPhoneAlt,
-  FaClock,
   FaComments,
   FaCalendarAlt,
   FaExclamationTriangle,
@@ -37,6 +34,7 @@ const UserConversation = () => {
   const [followUpDate, setFollowUpDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,6 +44,10 @@ const UserConversation = () => {
   const [followUpError, setFollowUpError] = useState("");
   const [originalStatusCode, setOriginalStatusCode] = useState(null);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [lastRemarkInput, setLastRemarkInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationDuration, setConversationDuration] = useState(null);
+
 
   const queryParams = new URLSearchParams(useLocation().search);
   const token = queryParams.get("token");
@@ -80,7 +82,37 @@ const UserConversation = () => {
 
   const [status, setStatus] = useState("");
 
-  const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId")|| "";
+  const user_id = sessionStorage.getItem("userId")|| "";
+
+  useEffect(() => {
+    if (!user_id) return;
+
+    setIsLoading(true);
+    fetchUserById(user_id)
+      .then((data) => {
+        setUser(data);
+      })
+      .catch((err) => {
+        setError(err.message);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [user_id]);
+
+useEffect(() => {
+  const fetchDuration = async () => {
+    if (!inquiry?.id) return;
+    const res = await getInquiryDuration(inquiry.id);
+    if (res.success && res.duration) {
+      setConversationDuration(res.duration);
+    }
+  };
+
+  fetchDuration();
+}, [inquiry?.id]);
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -124,11 +156,12 @@ const UserConversation = () => {
           created_at: userInquiry.created_at,
           updated_at: userInquiry.updated_at,
           last_question: userInquiry.lastQuestion,
-          conversation_duration: userInquiry.conversation_duration,
+          duration: userInquiry.duration,
           p_agent_remarks: userInquiry.agent_remarks,
           p_status: userInquiry.status_code,
           p_Next_followup: userInquiry.Next_followup,
           User_id: userInquiry.User_id,
+          user_id: userInquiry.user_id,
         };
       }
 
@@ -156,8 +189,9 @@ const UserConversation = () => {
           created_at: finalInquiry.created_at,
           updated_at: finalInquiry.updated_at,
 
-          conversation_duration: finalInquiry.conversation_duration,
+          duration: finalInquiry.duration,
           User_id: finalInquiry.User_id,
+          user_id: finalInquiry.user_id,
           Next_followup:
             finalInquiry.p_Next_followup ?? finalInquiry.Next_followup,
           agent_remarks:
@@ -168,6 +202,7 @@ const UserConversation = () => {
         console.log("finalInquiry", finalInquiry);
         setInquiry(mergedData);
         setOriginalStatusCode(mergedData.status_code);
+        setInquiry(data => ({ ...data, duration: conversationDuration }));
         console.log("mergedData", mergedData);
 
         // 💡 Reset form fields on every ticket load
@@ -295,12 +330,11 @@ const UserConversation = () => {
 
       const payload = {
         p_id: inquiry.id,
+        user_id: user_id,
         p_status: statusLabel,
         p_agent_remarks: agentRemarks,
         p_Next_followup: followUpDate,
       };
-
-      console.log("🚀 Final Payload to updateInquiry:", payload);
 
       const response = await updateInquiry(payload);
       // await fetchData();
@@ -348,7 +382,8 @@ const UserConversation = () => {
     ? {
         p_id: inquiry.id,
         p_status: statusOptions.find((opt) => opt.code === status)?.label || "",
-        p_User_id: inquiry.User_id ?? inquiry.User_id ?? null,
+        p_User_id: inquiry.User_id ?? null,
+        user_id: user_id ,
         p_Client_name: inquiry.Client_name ?? inquiry.Client_name ?? "no",
         p_contact: inquiry.contact ?? "no",
         p_email: inquiry.email ?? "no",
@@ -357,8 +392,10 @@ const UserConversation = () => {
         p_Next_followup: followUpDate,
         p_created_at: inquiry.created_at ?? "no",
         p_updated_at: inquiry.updated_at ?? "no",
+        
       }
     : null;
+
   console.log("inquirydetails", inquiryDetails);
 
   useEffect(() => {
@@ -453,7 +490,7 @@ const UserConversation = () => {
                 </td>
 
                 <td className="text-start">
-                  {inquiry.conversation_duration || "No conversation duration"}
+                  {conversationDuration ?? "No conversation duration"}
                 </td>
               </tr>
             ) : (
@@ -502,23 +539,18 @@ const UserConversation = () => {
               <tr>
                 <td>
                   <strong>Past Remarks:</strong>
-                  {inquiry?.p_agent_remarks &&
-                  inquiry.p_agent_remarks.split(",").length > 1 ? (
-                    <ul className="list-group mt-2">
-                      {inquiry.p_agent_remarks
-                        .split(",")
-                        .slice(0, -1) // Exclude the latest remark
-                        .map((remark, idx) => (
-                          <li key={idx} className="list-group-item">
-                            {remark.trim()}
-                          </li>
-                        ))}
-                    </ul>
-                  ) : (
-                    <div className="text-muted mt-2">
-                      No past remarks available.
-                    </div>
-                  )}
+                 {inquiry?.agent_remarks ? (
+    <ul className="list-group list-group-flush mt-2">
+      {inquiry.agent_remarks.split(",").map((remark, i) => (
+        <li key={i} className="list-group-item px-0">
+          {remark.trim()}
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <div className="text-muted mt-2">No past remarks available.</div>
+  )}
+                  {/* {inquiry?.agent_remarks} */}
                 </td>
               </tr>
             </tbody>
@@ -542,7 +574,7 @@ const UserConversation = () => {
                 // value={agentRemarks}
                 value={
                   agentRemarks
-                    ? agentRemarks.split(",").slice(-1)[0].trim()
+                    ? agentRemarks.split(",").slice(-1)[0]
                     : ""
                 }
                 onChange={(e) => {
@@ -551,6 +583,7 @@ const UserConversation = () => {
                     input.charAt(0).toUpperCase() + input.slice(1);
                   setAgentRemarks(capitalized);
                 }}
+                // onChange={(e) => setAgentRemarks(e.target.value)}
                 placeholder="Enter your remark"
                 disabled={isOriginallyClosed()}
               />

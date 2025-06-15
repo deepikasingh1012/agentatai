@@ -117,7 +117,6 @@ const [resetEmail, setResetEmail] = useState('');
     name: 'Super Admin'
   };
 
-      
   sessionStorage.setItem('token', mockUser.token);
   sessionStorage.setItem('email', mockUser.email);
   sessionStorage.setItem('role', mockUser.role);
@@ -158,7 +157,6 @@ const [resetEmail, setResetEmail] = useState('');
       const response = await verifyUserCredentials({ email, password });
 
       if (response.status === 'success') {
-          
          toast.dismiss(); // Dismiss any previous toasts
         const { username,user_name, user_id, abbreviation, client_id, role, token } = response.data;
 

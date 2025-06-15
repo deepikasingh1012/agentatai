@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getStaff, updateStaff, deleteStaff } from "../../../services/AdminService";
+import { getStaff, updateStaff, softDeleteStaff } from "../../../services/AdminService";
 import { FaEdit, FaTrash, FaSave, FaDownload } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -11,7 +11,10 @@ const AllStaff = () => {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [editedStaff, setEditedStaff] = useState({});
-  const clientId = localStorage.getItem("clientId");
+  // const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
+  const [currentPage, setCurrentPage] = useState(1);
+const itemsPerPage = 10; // Show 10 staff members per page
 
   useEffect(() => {
     if (clientId) {
@@ -70,41 +73,62 @@ const AllStaff = () => {
     }
   };
 
-  const confirmDelete = (userId) => {
-    toast.info(
-      <div>
-        <p className="mb-2">Are you sure you want to delete this staff member?</p>
-        <div className="d-flex justify-content-end">
-          <button
-            className="btn btn-sm btn-danger me-2"
-            onClick={() => {
-              toast.dismiss(); // Close the confirmation toast
-              handleDelete(userId);
-            }}
-          >
-            Delete
-          </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => toast.dismiss()}>
-            Cancel
-          </button>
+  // const handleDeleteStaff = async (userId) => {
+  //   if (window.confirm("Are you sure you want to inactive this staff member?")) {
+  //     try {
+  //       const response = await softDeleteStaff(userId);
+  //       if (response.status === "success") {
+  //         toast.success(response.message);
+  //         fetchStaff(); // refresh list
+  //       } else {
+  //         toast.error("Failed to delete staff.");
+  //       }
+  //     } catch (error) {
+  //       toast.error("Error during soft delete.");
+  //     }
+  //   }
+  // };
+  
+  const handleDeleteStaff = async (userId) => {
+    const toastId = toast(
+      ({ closeToast }) => (
+        <div>
+          <p>Are you sure you want to inactive this staff member?</p>
+          <div className="d-flex justify-content-end mt-2">
+            <button
+              className="btn btn-sm btn-danger me-2"
+              onClick={async () => {
+                try {
+                  const response = await softDeleteStaff(userId);
+                  if (response.status === "success") {
+                    toast.success(response.message);
+                    fetchStaff(); // refresh list
+                  } else {
+                    toast.error("Failed to delete staff.");
+                  }
+                } catch (error) {
+                  toast.error("Error during soft delete.");
+                }
+                toast.dismiss(toastId); // Close confirmation toast
+              }}
+            >
+              Yes
+            </button>
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => toast.dismiss(toastId)}
+            >
+              No
+            </button>
+          </div>
         </div>
-      </div>,
+      ),
       {
         autoClose: false,
         closeOnClick: false,
         closeButton: false,
       }
     );
-  };
-  
-  const handleDelete = async (userId) => {
-    try {
-      await deleteStaff(userId);
-      toast.success("Staff deleted successfully!");
-      fetchStaff();
-    } catch (error) {
-      toast.error("Deletion failed!");
-    }
   };
   
 
@@ -127,6 +151,13 @@ const AllStaff = () => {
     toast.success("Excel file downloaded!");
   };
 
+  const totalPages = Math.ceil(staffList.length / itemsPerPage);
+const paginatedStaff = staffList.slice(
+  (currentPage - 1) * itemsPerPage,
+  currentPage * itemsPerPage
+);
+
+
   return (
     <div className="container py-4">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
@@ -146,7 +177,7 @@ const AllStaff = () => {
           <table className="table table-bordered table-hover text-center align-middle">
             <thead className="table-secondary">
               <tr>
-                <th>ID</th>
+                {/* <th>ID</th> */}
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -156,9 +187,10 @@ const AllStaff = () => {
             </thead>
             <tbody>
               {staffList.length > 0 ? (
-                staffList.map((staff) => (
+                paginatedStaff.map((staff) => (
+
                   <tr key={staff.user_id}>
-                    <td>{staff.user_id}</td>
+                    {/* <td>{staff.user_id}</td> */}
                     <td>
                       {editingId === staff.user_id ? (
                         <input
@@ -227,12 +259,13 @@ const AllStaff = () => {
                             onClick={() => handleEditClick(staff)}
                             title="Edit"
                           />
-                          <FaTrash
-                            className="text-danger fs-5"
-                            role="button"
-                            onClick={() => confirmDelete(staff.user_id)}
-                            title="Delete"
-                          />
+                         
+                         <FaTrash
+        className="text-danger fs-5"
+        role="button"
+        onClick={() => handleDeleteStaff(staff.user_id)}
+        title="Delete"
+      /> 
                         </>
                       )}
                     </td>
@@ -245,6 +278,18 @@ const AllStaff = () => {
               )}
             </tbody>
           </table>
+
+           <div className="d-flex justify-content-center align-items-center gap-2 mt-3 flex-wrap">
+    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+        <button
+            key={pageNumber}
+            className={`btn btn-sm ${currentPage === pageNumber ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setCurrentPage(pageNumber)}
+        >
+            {pageNumber}
+        </button>
+    ))}
+</div>
         </div>
       )}
     </div>

@@ -2,8 +2,9 @@
 import axios from "axios";
  
 // import { getClientId } from '../services/Service';
-const API_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
-//  const API_URL = "https://api.ataibot.in/public/";
+// const API_URL = "https://ataichatbot.mcndhanore.co.in";
+const API_URL ="https://api.ataichatbot.mcndhanore.co.in";
+//  const API_URL = "https://api.ataibot.in";
  
  
  
@@ -14,7 +15,8 @@ export const initRecordingConversation = async (sessionId) => {
         console.log("🔹 Payload Sent:", { user_id: sessionId });
  
         const response = await axios.post(
-            `${API_URL}/public/api/init_recording_conversation`,
+            // `${API_URL}/atai-api/public/api/init_recording_conversation`,
+             `${API_URL}/public/api/init_recording_conversation`,
             { user_id: sessionId },
             { headers: { "Content-Type": "application/json" } }
         );
@@ -23,10 +25,6 @@ export const initRecordingConversation = async (sessionId) => {
         return response.data;
     } catch (error) {
         console.log("Error", error);
-        // console.error("❌ Error initializing recording:");
-        // console.error("🔹 Request Config:", error.config);
-        // console.error("🔹 Response Data:", error.response?.data || "No response data");
-        // console.error("🔹 Full Error Details:", error.toJSON ? error.toJSON() : error);
         throw error;
     }
 };
@@ -39,7 +37,9 @@ export const fetchQuestions = async (clientId) => {
         }
         console.log("Fetching questions for clientId:", clientId);
         // const clientId = getClientId();
-        const response = await axios.get(`${API_URL}/public/api/get-questions`, {
+        // const response = await axios.get(`${API_URL}/atai-api/public/api/get-questions`,
+         const response = await axios.get(`${API_URL}/public/api/get-questions`,
+             {
             params: { client_id: clientId },
         });
         console.log("Fetched Questions for ClientId ", clientId, ":", response.data);
@@ -52,7 +52,9 @@ export const fetchQuestions = async (clientId) => {
  
 export const submitCallbackPreference = async (sessionId, preference) => {
     try {
-        const response = await axios.post(`${API_URL}/public/api/submit_callback_preference`, {
+        // const response = await axios.post(`${API_URL}/atai-api/public/api/submit_callback_preference`, 
+             const response = await axios.post(`${API_URL}/public/api/submit_callback_preference`, 
+            {
             user_id: sessionId,
             message: preference,
         });
@@ -69,6 +71,7 @@ export const submitCallbackPreference = async (sessionId, preference) => {
 export const submitInquiry = async (inquiryData) => {
     try {
         const response = await axios.post(
+            // `${API_URL}/atai-api/public/api/manage-inquiry`,
             `${API_URL}/public/api/manage-inquiry`,
             inquiryData,
             { headers: { "Content-Type": "application/json" } }
@@ -81,34 +84,6 @@ export const submitInquiry = async (inquiryData) => {
     }
 };
  
- 
-// export const sendUserDetailsToBackend = async (sessionId, details) => {
-//     if (!sessionId || !details?.userName || !details?.userContact || !details?.userEmail) {
-//         console.error("🚨 Missing required fields:", details);
-//         return { message: "Invalid user details." };
-//     }
- 
-//     const requestBody = {
-//         user_id: sessionId,  // Pass sessionId as user_id
-//         message: `${details.userName}, ${details.userContact}, ${details.userEmail}`  // Concatenate details in message
-//     };
- 
-//     console.log("✅ Sending Data to Backend:", requestBody);
- 
-//     try {
-//         const response = await axios.post(`${API_URL}/public/api/submit_details`, requestBody);
-//         return response.data;
-//     } catch (error) {
-//         console.error("❌ Error submitting user details:", error.response?.data || error.message);
- 
-//         // 🔥 Check if the issue is a 404 error
-//         if (error.response?.status === 404) {
-//             console.error("❌ API Endpoint Not Found: Check if the route exists in Laravel.");
-//         }
- 
-//         return { message: "An error occurred. Please try again." };
-//     }
-// };
  
  
 export const submitUserQueryToBackend = async (sessionId, query, userDetails) => {
@@ -126,7 +101,8 @@ export const submitUserQueryToBackend = async (sessionId, query, userDetails) =>
     console.log("✅ Sending Query to Backend:", requestBody);
  
     try {
-        const response = await axios.post(`${API_URL}/public/api/submit_details`, requestBody);
+        // const response = await axios.post(`${API_URL}/atai-api/public/api/submit_details`, requestBody);
+         const response = await axios.post(`${API_URL}/public/api/submit_details`, requestBody);
         console.log("response message", response.data)
         return response.data;
  
@@ -140,7 +116,9 @@ export const submitUserQueryToBackend = async (sessionId, query, userDetails) =>
  
 export const submitUserRating = async (sessionId, rating) => {
     try {
-        const response = await axios.post(`${API_URL}/public/api/submit_satisfaction`, {
+        // const response = await axios.post(`${API_URL}/atai-api/public/api/submit_satisfaction`, 
+         const response = await axios.post(`${API_URL}/public/api/submit_satisfaction`, 
+            {
             user_id: sessionId,
             message: rating,
         });
@@ -156,7 +134,8 @@ export const submitUserRating = async (sessionId, rating) => {
 export const terminateChat = async (sessionId) => {
     try {
         console.log("🔄 Calling terminate API with sessionId:", sessionId);
-        const response = await axios.post(`${API_URL}/public/api/terminate`, { user_id: sessionId });
+        // const response = await axios.post(`${API_URL}/atai-api/public/api/terminate`, { user_id: sessionId });
+         const response = await axios.post(`${API_URL}/public/api/terminate`, { user_id: sessionId });
         console.log("✅ Terminate API Response:", response.data);
         return response.data;
     } catch (error) {
@@ -189,6 +168,7 @@ export const handleTerminateResponse = async (sessionId, userMessage, clientId) 
         };
         console.log("🔄 Sending payload to terminate_response API:", payload);
  
+        // const response = await axios.post(`${API_URL}/atai-api/public/api/terminate_response`, payload);
         const response = await axios.post(`${API_URL}/public/api/terminate_response`, payload);
  
         console.log("✅ Terminate Response API Response:", response.data);
@@ -204,3 +184,4 @@ export const handleTerminateResponse = async (sessionId, userMessage, clientId) 
     }
 };
  
+

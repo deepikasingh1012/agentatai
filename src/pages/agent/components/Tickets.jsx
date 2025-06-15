@@ -45,7 +45,7 @@ export default function Tickets() {
   const page_size = 10;
   const { searchQuery } = useOutletContext();
   const location = useLocation();
-  const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -107,7 +107,7 @@ export default function Tickets() {
 
   useEffect(() => {
     fetchData(pageFromQuery, filterStatus);
-  }, []);
+  }, [filterStatus, pageFromQuery]);
 
     useEffect(() => {
     // Only fetch “All” or status‑filtered if not in date‑filter mode:
@@ -120,7 +120,7 @@ export default function Tickets() {
   // useEffect(() => {
   //   fetchData(currentPage, filterStatus);
   // }, [currentPage, filterStatus]);
-
+const user_id = sessionStorage.getItem("userId");
   const fetchData = async (page = 1, status = filterStatus) => {
     setLoading(true);
     try {
@@ -227,6 +227,14 @@ export default function Tickets() {
   //   setCurrentPage(page);
   //   fetchData(page, filterStatus);
   // };
+
+  useEffect(() => {
+  const storedUserId = sessionStorage.getItem("userId");
+  if (storedUserId) {
+    // Fetch data using storedUserId
+    fetchData(1, filterStatus, storedUserId);
+  }
+}, [filterStatus]);
 
     useEffect(() => {
     if (fromDate && toDate) {

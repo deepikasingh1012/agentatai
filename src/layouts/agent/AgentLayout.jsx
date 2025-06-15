@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from "../../context/AuthProvider";
-import { getRecentInquiries } from "../../services/AgentServices";
+import { getRecentInquiries,logoutUser } from "../../services/AgentServices";
 
 const AgentLayout = () => {
   const navigate = useNavigate();
@@ -27,12 +27,26 @@ const AgentLayout = () => {
         return "Self Assessment Report";
               case "/agent/components/ManageProfile":
         return "My Profile";
-      case "/agent/components/help":
+      case "/agent/components/Help":
         return "Help and Support";
       default:
         return "Welcome To Agent Dashboard";
     }
   };
+  const handleLogout = async () => {
+  const userId = sessionStorage.getItem("userId");
+
+  try {
+    if (userId) {
+      await logoutUser(userId); // ⬅️ Call the logout API
+    }
+  } catch (error) {
+    console.error("Error during logout:", error);
+  } finally {
+    logout(); // ⬅️ Clear session/context
+    navigate('/'); // ⬅️ Redirect to login/home
+  }
+};
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -49,7 +63,7 @@ const AgentLayout = () => {
 
   useEffect(() => {
     const fetchNotificationCount = async () => {
-      const clientId = localStorage.getItem("clientId");
+      const clientId = sessionStorage.getItem("clientId");
       if (clientId) {
         try {
           const { success, newInquiriesCount, recentInquiries } =
@@ -142,14 +156,11 @@ const AgentLayout = () => {
         </div>
 
         <button
-          className="btn btn-outline-light"
-          onClick={() => {
-            logout();
-            navigate("/");
-          }}
-        >
-          <i className="fas fa-sign-out-alt me-1"></i>Logout
-        </button>
+  className="btn btn-outline-light"
+  onClick={handleLogout}
+>
+  <i className="fas fa-sign-out-alt me-1"></i>Logout
+</button>
       </div>
       {/* Mobile View: Toggle Menu */}
       <div className="dropdown d-flex d-lg-none">

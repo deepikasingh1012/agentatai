@@ -6,14 +6,25 @@ export default function Setup() {
   const [options, setOptions] = useState([{ type: "text", label: "", link: "" }]);
   const [error, setError] = useState("");
   const [dragDropQuestions, setDragDropQuestions] = useState([]);
- 
+  const [showMessage, setShowMessage] = useState(true);
   const [modal, setModal] = useState({ show: false, message: "", isError: false });
 
-  const clientId = localStorage.getItem("clientId");
+  // const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
+
 
   useEffect(() => {
     loadQuestions();
   }, [clientId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowMessage(prev => !prev);
+    }, 60 * 1000); // Toggle every 1 minute
+  
+    return () => clearInterval(interval);
+  }, []);
+  
 
   const formatHierarchy = (items, prefix = "1") => {
     return items.flatMap((item, index) => {
@@ -52,25 +63,34 @@ export default function Setup() {
   };
 
 
-  const toTitleCase = (str) => {
-    return str
-      .toLowerCase()
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
+  // const toTitleCase = (str) => {
+  //   return str
+  //     .toLowerCase()
+  //     .split(" ")
+  //     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+  //     .join(" ");
+  // };
 
-  // const addOption = () => setOptions([...options, { type: "text", label: "", link: "" }]);
 
-  const addOption = () => {
-    if (options.length >= 3) {
-      setError("You can only add 3 questions at a time.");
-      return;
-    }
-    setOptions([...options, { type: "text", label: "", link: "" }]);
-    setError("");  // Clear error if within limit
-  };
+
+  // const addOption = () => {
+  //   if (options.length >= 3) {
+  //     setError("You can only add 3 questions at a time.");
+  //     return;
+  //   } 
+  //   setOptions([...options, { type: "text", label: "", link: "" }]);
+  //   setError("");  
+  // };
   
+  const addOption = () => {
+  if (options.length >= 3) {
+    setError("You can only add up to 3 questions.");
+    return;
+  }
+  setOptions([...options, { type: "text", label: "", link: "" }]);
+  setError("");
+};
+
 
   const removeOption = (index) => setOptions(options.filter((_, i) => i !== index));
 
@@ -80,11 +100,17 @@ export default function Setup() {
     );
   };
 
+  // const handleLabelChange = (index, label) => {
+  //   setOptions((prev) =>
+  //     prev.map((option, i) => (i === index ? { ...option, label: toTitleCase(label) } : option))
+  //   );
+  // };
+
   const handleLabelChange = (index, label) => {
-    setOptions((prev) =>
-      prev.map((option, i) => (i === index ? { ...option, label: toTitleCase(label) } : option))
-    );
-  };
+  setOptions((prev) =>
+    prev.map((option, i) => (i === index ? { ...option, label } : option))
+  );
+};
 
   const handleLinkChange = (index, link) => {
     setOptions((prev) =>
@@ -116,73 +142,139 @@ export default function Setup() {
 
 
 
-  const handleSubmit = async () => {
-    if (options.some((opt) => !opt.label.trim())) {
-      alert("Please enter a valid question label for all options!");
-      return;
-    }
+  // const handleSubmit = async () => {
+  //   if (options.some((opt) => !opt.label.trim())) {
+  //     alert("Please enter a valid question label for all options!");
+  //     return;
+  //   }
      
-     // Check if the number of options exceeds the limit (3)
-  if (options.length > 3) {
-    setModal({ show: true, message: "only 3 questions can be submitted at a time.", isError: true });
+  //    // Check if the number of options exceeds the limit (3)
+  // if (options.length > 3) {
+  //   setModal({ show: true, message: "only 3 questions can be submitted at a time.", isError: true });
+  //   return;
+  // }
+
+  //   // const clientId = Number(localStorage.getItem("clientId")) || 1;
+  //   const clientId = Number(sessionStorage.getItem("clientId")) || 1;
+
+  //   console.log("Fetching questions for client_id:", clientId);
+  
+  //   try {
+  //     const fetchedData = await fetchQuestions(clientId);
+  //     console.log("API Response for Questions:", fetchedData);
+  
+  //     const existingQuestions = fetchedData?.questions || [];
+  //     let p_question_level = 1;
+  //     let p_question_parent_level = 1;
+  //     const isFirstQuestion = existingQuestions.length === 0;
+  
+  //     for (let index = 0; index < options.length; index++) {
+  //       const option = options[index];
+  
+  //       // Parent level logic
+  //       p_question_parent_level = isFirstQuestion && index === 0 ? 0 : 1;
+  
+  //       let p_question_type = 1; // Default to text
+  //       let p_question_label = "";
+  
+  //       if (option.type === "link" && option.link) {
+  //         p_question_type = getQuestionTypeFromLink(option.link);
+  //         p_question_label = option.link;
+  //       } else if (option.type === "other") {
+  //         p_question_type = 1; // treat as text or customize as needed
+  //         p_question_label = option.label;
+  //       } else {
+  //         p_question_type = 1;
+  //       }
+  
+  //       const newQuestion = {
+  //         action_type: "I",
+  //         p_question_text: option.label.trim(),
+  //         p_question_label: p_question_label,
+  //         p_question_type,
+  //         p_client_id: clientId,
+  //         p_question_level,
+  //         p_question_parent_level,
+  //       };
+  
+  //       console.log("Submitting Question:", newQuestion);
+  //       await sendQuestionsToAPI(newQuestion);
+  //     }
+  
+  //     setModal({ show: true, message: "All questions submitted successfully!", isError: false });
+  //     setOptions([{ type: "text", label: "", link: "" }]);
+  //     loadQuestions();
+  
+  //   } catch (error) {
+  //     console.error("❌ Error sending question:", error.response?.data || error.message);
+  //     setModal({ show: true, message: " only 3 questions can be submitted at a time.", isError: true });
+  //   }
+  // };
+  
+const handleSubmit = async () => {
+  if (options.some((opt) => !opt.label.trim())) {
+    alert("Please enter a valid question label for all options!");
     return;
   }
 
-    const clientId = Number(localStorage.getItem("clientId")) || 1;
-    console.log("Fetching questions for client_id:", clientId);
-  
-    try {
-      const fetchedData = await fetchQuestions(clientId);
-      console.log("API Response for Questions:", fetchedData);
-  
-      const existingQuestions = fetchedData?.questions || [];
-      let p_question_level = 1;
-      let p_question_parent_level = 1;
-      const isFirstQuestion = existingQuestions.length === 0;
-  
-      for (let index = 0; index < options.length; index++) {
-        const option = options[index];
-  
-        // Parent level logic
-        p_question_parent_level = isFirstQuestion && index === 0 ? 0 : 1;
-  
-        let p_question_type = 1; // Default to text
-        let p_question_label = "";
-  
-        if (option.type === "link" && option.link) {
-          p_question_type = getQuestionTypeFromLink(option.link);
-          p_question_label = option.link;
-        } else if (option.type === "other") {
-          p_question_type = 1; // treat as text or customize as needed
-          p_question_label = option.label;
-        } else {
-          p_question_type = 1;
-        }
-  
-        const newQuestion = {
-          action_type: "I",
-          p_question_text: option.label.trim(),
-          p_question_label: p_question_label,
-          p_question_type,
-          p_client_id: clientId,
-          p_question_level,
-          p_question_parent_level,
-        };
-  
-        console.log("Submitting Question:", newQuestion);
-        await sendQuestionsToAPI(newQuestion);
+  // Check if the number of options exceeds the limit (3)
+  if (options.length > 3) {
+    setModal({ show: true, message: "Only up to 3 questions can be submitted at a time.", isError: true });
+    return;
+  }
+
+  const clientId = Number(sessionStorage.getItem("clientId")) || 1;
+  console.log("Fetching questions for client_id:", clientId);
+
+  try {
+    const fetchedData = await fetchQuestions(clientId);
+    console.log("API Response for Questions:", fetchedData);
+
+    const existingQuestions = fetchedData?.questions || [];
+    let p_question_level = 1;
+    let p_question_parent_level = 1;
+    const isFirstQuestion = existingQuestions.length === 0;
+
+    // Prepare all questions
+    const newQuestions = options.map((option, index) => {
+      // Parent level logic
+      p_question_parent_level = isFirstQuestion && index === 0 ? 0 : 1;
+
+      let p_question_type = 1; // Default to text
+      let p_question_label = "";
+
+      if (option.type === "link" && option.link) {
+        p_question_type = getQuestionTypeFromLink(option.link);
+        p_question_label = option.link;
+      } else if (option.type === "other") {
+        p_question_type = 1;
+        p_question_label = option.label;
+      } else {
+        p_question_type = 1;
       }
-  
-      setModal({ show: true, message: "All questions submitted successfully!", isError: false });
-      setOptions([{ type: "text", label: "", link: "" }]);
-      loadQuestions();
-  
-    } catch (error) {
-      console.error("❌ Error sending question:", error.response?.data || error.message);
-      setModal({ show: true, message: " only 3 questions can be submitted at a time.", isError: true });
-    }
-  };
-  
+
+      return {
+        action_type: "I",
+        p_question_text: option.label.trim(),
+        p_question_label: p_question_label,
+        p_question_type,
+        p_client_id: clientId,
+        p_question_level,
+        p_question_parent_level,
+      };
+    });
+
+    // Submit all at once using Promise.all (to avoid partial success)
+    await Promise.all(newQuestions.map(sendQuestionsToAPI));
+
+    setModal({ show: true, message: "All questions submitted successfully!", isError: false });
+    setOptions([{ type: "text", label: "", link: "" }]);
+    loadQuestions();
+  } catch (error) {
+    console.error("❌ Error sending questions:", error.response?.data || error.message);
+    setModal({ show: true, message: "Failed to submit questions. Please try again.", isError: true });
+  }
+};
 
 
 
@@ -192,9 +284,9 @@ export default function Setup() {
 
   return (
     <div className="container-fuild mt-4">
-      <h2 className="text-center mb-4">Setup for ATai Business Assistance</h2>
+      <h2 className="text-center mb-4">Train Atai For Your Orgnization </h2>
 
-      {options.map((option, index) => (
+      {/* {options.map((option, index) => (
         <div key={index} className="mb-3 border p-3 rounded">
           <div className="d-flex flex-wrap align-items-start gap-3">
             <div className="btn-group gap-2">
@@ -222,11 +314,13 @@ export default function Setup() {
               {option.type === "text" && (
                 <input
                   type="text"
-                  placeholder="Add enquiry text"
+                  placeholder="Enter Text Option For Assist Your Visitor"
                   className="form-control"
                   value={option.label}
                   onChange={(e) => handleLabelChange(index, e.target.value)}
+                  
                 />
+                
               )}
 
               {option.type === "link" && (
@@ -269,7 +363,91 @@ export default function Setup() {
 
           </div>
         </div>
-      ))}
+      ))} */}
+
+{showMessage && (
+  <div className="text-center text-muted mb-2">
+    <em>
+      ⚠️ For smooth operation, please enter one question at a time. Otherwise, if needed, enter exactly 3 questions at once.
+    </em>
+  </div>
+)}
+
+
+{options.map((option, index) => (
+  <div key={index} className="mb-3 border p-3 rounded">
+    <div className="d-flex flex-wrap align-items-start gap-3">
+      <div className="btn-group gap-2">
+        <button
+          className={`btn ${option.type === "text" ? "btn-dark" : "btn-outline-secondary"}`}
+          onClick={() => handleOptionChange(index, "text")}
+        >
+          Text
+        </button>
+        <button
+          className={`btn ${option.type === "link" ? "btn-primary" : "btn-outline-secondary"}`}
+          onClick={() => handleOptionChange(index, "link")}
+        >
+          Link
+        </button>
+        <button
+          className={`btn ${option.type === "other" ? "btn-success" : "btn-outline-secondary"}`}
+          onClick={() => handleOptionChange(index, "other")}
+        >
+          Other
+        </button>
+      </div>
+
+      <div className="flex-grow-1">
+        {option.type === "text" && (
+          <input
+            type="text"
+            placeholder="Enter Text Option For Assist Your Visitor"
+            className="form-control"
+            value={option.label}
+            onChange={(e) => handleLabelChange(index, e.target.value)}
+          />
+        )}
+
+        {option.type === "link" && (
+          <div className="d-flex flex-row gap-2 w-100">
+            <input
+              type="text"
+              placeholder="Option label"
+              className="form-control"
+              value={option.label}
+              onChange={(e) => handleLabelChange(index, e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Enter link (URL)"
+              className="form-control"
+              value={option.link}
+              onChange={(e) => handleLinkChange(index, e.target.value)}
+            />
+          </div>
+        )}
+
+        {option.type === "other" && (
+          <input
+            type="text"
+            placeholder="Option label"
+            className="form-control"
+            value={option.label}
+            onChange={(e) => handleLabelChange(index, e.target.value)}
+          />
+        )}
+      </div>
+
+      <div className="d-flex flex-row gap-2">
+        <button onClick={addOption} className="btn btn-outline-success">+</button>
+        {options.length > 1 && (
+          <button onClick={() => removeOption(index)} className="btn btn-outline-danger">−</button>
+        )}
+      </div>
+    </div>
+  </div>
+))}
 
 
       {/* {error && <p className="text-danger">{error}</p>} */}
@@ -290,12 +468,11 @@ export default function Setup() {
         </div>
       )}
 
-      <h3 className="mt-5 mb-3">Setup Business Option Level</h3>
+      <h3 className="mt-5 mb-3">Train Orgnization Option Level</h3>
       {dragDropQuestions.length > 0 ? (
-        <Dragdrop questions={dragDropQuestions} />
-      ) : (
-        <p>Loading questions...</p>
-      )}
+  <Dragdrop questions={dragDropQuestions} />
+) : null}
+
     </div>
   );
 }

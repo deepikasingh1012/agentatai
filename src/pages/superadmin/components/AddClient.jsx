@@ -76,11 +76,11 @@ if (!phoneRegex.test(phone.trim())) newErrors.phone = "Phone number must start w
           <form onSubmit={handleSubmit} className="p-3 border rounded shadow-sm bg-light">
             <div className="mb-3">
               <label className="form-label">
-                Name <span className="text-danger">*</span>
+                Orgnization Name <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
-                placeholder="Enter Full Name"
+                placeholder="Enter Orgnization Name"
                 className="form-control"
                 value={name}
                 onChange={(e) => setName(e.target.value)}

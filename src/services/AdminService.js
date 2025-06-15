@@ -2,7 +2,8 @@ import axios from "axios";
 import { getClientId } from '../services/Service'; // adjust path if needed
 
 // const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
-const BASE_URL = "https://api.ataibot.in/public/api";
+  // const BASE_URL = "https://api.ataibot.in/public/api";
+  const BASE_URL ="https://api.ataichatbot.mcndhanore.co.in/public/api";
 
 // const fetchData = async (method, url, data = {}) => {
 //     try {
@@ -19,8 +20,34 @@ const BASE_URL = "https://api.ataibot.in/public/api";
 //     }
 //   };
 
+
+
+export const getRecentInquiries = async (clientId) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/client/${clientId}/recent-inquiries`);
+    
+    if (response && response.data) {
+      return {
+        success: true,
+        clientId: response.data.client_id,
+        newInquiriesCount: response.data.new_inquiries_count,
+        recentInquiries: response.data.recent_inquiries
+      };
+    } else {
+      console.error("Unexpected response format from recent-inquiries API:", response);
+      return { success: false, newInquiriesCount: 0, recentInquiries: [] };
+    }
+
+  } catch (error) {
+    console.error(`Error fetching recent inquiries for client ${clientId}:`, error);
+    return { success: false, newInquiriesCount: 0, recentInquiries: [] };
+  }
+};
+
+
   export const getInquiryStatusCount = async () => {
-    const clientId = localStorage.getItem("clientId");
+   const clientId = sessionStorage.getItem("clientId");
+
  // or get it from user context
     const response = await axios.get(`${BASE_URL}/inquiry/status-count/${clientId}`);
     return response.data;
@@ -161,6 +188,18 @@ export const addStaff = async (staffData) => {
     }
   };
   
+  export const softDeleteStaff = async (userId) => {
+    try {
+      const response = await axios.put(`${BASE_URL}/users/soft-delete`, {
+        user_id: userId
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error in soft delete:", error.response?.data || error.message);
+      throw error;
+    }
+  };
+  
   
   
   
@@ -182,18 +221,7 @@ export const addStaff = async (staffData) => {
   };
   
   
-  // ✅ Delete staff member (DELETE API)
-  export const deleteStaff = async (userId) => {
-    try {
-      const response = await axios.delete(`${BASE_URL}/manage-user`, {
-        data: { p_user_id: userId },
-      });
-      return response.data;
-    } catch (error) {
-      console.error("❌ Error deleting staff:", error.response?.data || error.message);
-      throw error;
-    }
-  };
+
 
   // ✅ Function to update user password
 export const updatePassword = async (userId, newPassword, confirmPassword) => {
@@ -210,5 +238,32 @@ export const updatePassword = async (userId, newPassword, confirmPassword) => {
       throw new Error(error.response?.data?.message || "Failed to update password.");
     }
   };
+
+
+  // for chatbot 
+
+ 
+
+export const fetchAllClients = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/clients`);
+    return response.data?.data || []; // ✅ Extract the actual array
+  } catch (error) {
+    console.error("Error fetching clients:", error);
+    return [];
+  }
+};
+
+
+export const getClientContactNumber = async (clientId) => {
+  try {
+    const clients = await fetchAllClients();
+    const client = clients.find((c) => String(c.id) === String(clientId));
+    return client?.ContactNumber || "8421924019";
+  } catch (error) {
+    console.error("Error getting client contact number:", error);
+    return "8421924019";
+  }
+};
 
  

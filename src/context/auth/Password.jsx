@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams,useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { updatePassword } from "../services/Service";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 
@@ -11,7 +11,6 @@ const Password = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const toggleNewPasswordVisibility = () => {
     setShowNewPassword(!showNewPassword);
@@ -55,9 +54,6 @@ const Password = () => {
       setError(null);
       setNewPassword("");
       setConfirmPassword("");
-       setTimeout(() => {
-    navigate("/");
-  }, 2000);
     } catch (error) {
       setError(error.message);
       setSuccessMessage("");

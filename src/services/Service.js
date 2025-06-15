@@ -3,9 +3,10 @@ import axios from "axios";
 
 
 // const BASE_URL = "https://ataichatbot.mcndhanore.co.in/atai-api/public/api";
-const BASE_URL = "https://api.ataibot.in/public/api";
+// const BASE_URL = "https://api.ataibot.in/public/api";
+const BASE_URL ="https://api.ataichatbot.mcndhanore.co.in/public/api";
 
-export const getClientId = () => localStorage.getItem("clientId");
+export const getClientId = () => sessionStorage.getItem("clientId");
 
 
 
@@ -76,30 +77,30 @@ export const getClient = async () => {
   
   
   // ✅ Update Client member (PUT API)
-  export const updateClient = async (ClientData) => {
-    try {
-      const response = await axios.put(`${BASE_URL}/manage-user`, ClientData, {
-        headers: { "Content-Type": "application/json" },
-      });
+//   export const updateClient = async (ClientData) => {
+//     try {
+//       const response = await axios.put(`${BASE_URL}/manage-user`, ClientData, {
+//         headers: { "Content-Type": "application/json" },
+//       });
   
-      console.log("✅ Client updated successfully:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("❌ Error updating Client:", error.response?.data || error.message);
-      throw error;
-    }
-  };
+//       console.log("✅ Client updated successfully:", response.data);
+//       return response.data;
+//     } catch (error) {
+//       console.error("❌ Error updating Client:", error.response?.data || error.message);
+//       throw error;
+//     }
+//   };
   
-// ✅ Delete Client
-export const deleteClient = async (email) => {
-  try {
-    const response = await axios.delete(`${BASE_URL}/client`, { data: { email } });
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting client:', error);
-    return { status: 'error', message: error.message };
-  }
-};
+// // ✅ Delete Client
+// export const deleteClient = async (email) => {
+//   try {
+//     const response = await axios.delete(`${BASE_URL}/client`, { data: { email } });
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error deleting client:', error);
+//     return { status: 'error', message: error.message };
+//   }
+// };
 
 
 
@@ -119,5 +120,36 @@ export const updatePassword = async (userId, newPassword, confirmPassword) => {
       throw new Error(error.response?.data?.message || "Failed to update password.");
     }
   };
+
+  export const updateClientById = async (clientData) => {
+    try {
+      const response = await axios.put(`${BASE_URL}/client/update`, clientData, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      console.log("✅ client updated successfully:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error updating client:", error.response?.data || error.message);
+      throw error;
+    }
+  };
+  
+  // ✅ Forgot Password API call
+  export const forgotPassword = async (email) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/forgot-password`, { email });
+      return response.data;
+    } catch (error) {
+      console.error("❌ Forgot password error:", error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || "Failed to send password reset email.");
+    }
+  };
+  
+  
+  
+  
+  
+   
+  
 
  

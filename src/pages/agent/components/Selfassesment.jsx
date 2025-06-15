@@ -28,7 +28,7 @@ export default function SelfAssessment() {
    "No-Response":0,
     
   });
-  const clientId = localStorage.getItem("clientId");
+  const clientId = sessionStorage.getItem("clientId");
 
   useEffect(() => {
     const fetchAllData = async () => {

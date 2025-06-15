@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getTodaysFollowups }from "../../../services/AgentServices";
 
-const Notifications = () => {
+const NotificationAdmin = () => {
   const [followups, setFollowups] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,5 +47,5 @@ const Notifications = () => {
   );
 };
 
-export default Notifications;
+export default NotificationAdmin;
 

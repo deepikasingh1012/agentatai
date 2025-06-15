@@ -26,7 +26,9 @@ import { toast, ToastContainer, Slide } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 
-const COLORS = ["#AEB0B2", "#85898C", "#5D6166", "#343A40"];
+// const COLORS = ["#AEB0B2", "#85898C", "#5D6166", "#343A40"];
+const COLORS = ["#007bff","#a4b2dc","#303F9F","#6679bf"]
+
 // const renderCustomizedLabel = ({ percent }) => `${(percent * 100).toFixed(0)}%`;
 
 const Dashboard = () => {
@@ -123,8 +125,10 @@ const Dashboard = () => {
 
     useEffect(() => {
           toast.dismiss();
-    const clientId = localStorage.getItem("clientId");
-    const userId = localStorage.getItem("user_id");
+  const clientId = sessionStorage.getItem("clientId");
+  const userId = sessionStorage.getItem("userId");
+
+ 
 
     if (clientId && userId) {
       getTodaysFollowups(clientId)
@@ -186,11 +190,15 @@ const Dashboard = () => {
 
   const barChartData = [
     // { name: "Total", count: ticketData.total_count, fill: "#007bff" },
+      { name: "Open", count: ticketData.Open, fill: "#007bff" },
+    { name: "In-Progress", count: ticketData.Inprogress, fill: "#a4b2dc" },
+    { name: "Resolved", count: ticketData.Resolved, fill: "#303F9F" },
+    { name: "No-Response", count: ticketData.Noresponse, fill: "#6679bf" },
 
-    { name: "Open", count: ticketData.Open, fill: "#AEB0B2" },
-    { name: "In-Progress", count: ticketData.Inprogress, fill: "#85898C" },
-    { name: "Resolved", count: ticketData.Resolved, fill: "#5D6166" },
-    { name: "No-Response", count: ticketData.Noresponse, fill: "#343A40" },
+    // { name: "Open", count: ticketData.Open, fill: "#AEB0B2" },
+    // { name: "In-Progress", count: ticketData.Inprogress, fill: "#85898C" },
+    // { name: "Resolved", count: ticketData.Resolved, fill: "#5D6166" },
+    // { name: "No-Response", count: ticketData.Noresponse, fill: "#343A40" },
   ];
 
   const donutChartData = [

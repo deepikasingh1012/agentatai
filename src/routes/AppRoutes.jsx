@@ -2,6 +2,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Login from "../auth/Login";
+import Password from '../auth/Password';
 import AdminLayout from "../layouts/admin/AdminLayout";
 import AgentLayout from "../layouts/agent/AgentLayout";
 import SuperAdminLayout from "../layouts/superadmin/SuperAdminLayout";
@@ -18,6 +19,8 @@ import Tickets from "../pages/agent/components/Tickets";
 import Userconversation from "../pages/agent/components/Userconversation";
 import Selfassesment from "../pages/agent/components/Selfassesment";
 import Notifications from "../pages/agent/components/Notifications";
+import NotificationAdmin from "../pages/admin/components/NotificationAdmin";
+
 import ManageProfile from "../pages/agent/components/ManageProfile";
 
 
@@ -27,12 +30,14 @@ import Setup from '../pages/admin/components/Setup';
 import UpdateDelete from '../pages/admin/components/UpdateDelete';
 import AddStaff from '../pages/admin/components/AddStaff';
 import AllStaff from '../pages/admin/components/AllStaff';
+import AtaiTour from '../pages/admin/components/AtaiTour';
 
 
 // ✅ Updated imports with correct paths superadmin
 import Client from '../pages/superadmin/components/Client';
 import AddClient from '../pages/superadmin/components/AddClient';
 import AllClient from '../pages/superadmin/components/AllClient';
+import ProtectedRoute from '../routes/ProtectedRoute';
 
 
 
@@ -40,23 +45,42 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+       <Route path="/setup-password/:id" element={<Password />} />
+            <Route path="/chatbot/:clientId" element={<ChatbotPage />} />
 
 
 
       {/* Admin Routes */}
 
 
-      <Route path="/admin" element={<AdminLayout />}>
+       <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
         <Route index element={<AdminDashboard />} />
        
         <Route path="components/setup" element={<Setup />} />
         <Route path="components/updatedelete" element={<UpdateDelete />} />
         <Route path="components/add-staff" element={<AddStaff />} />
         <Route path="components/all-staff" element={<AllStaff />} />
+         <Route path="components/NotificationAdmin" element={<NotificationAdmin />} />
+         <Route path="components/atai-tour" element={<AtaiTour />} />
       </Route>
 
 
-      <Route path="/agent" element={<AgentLayout />}>
+         {/* Protected Agent Routes */}
+            <Route
+              path="/agent"
+              element={
+                <ProtectedRoute>
+                  <AgentLayout />
+                </ProtectedRoute>
+              }
+            >
   <Route index element={<Dashboard />} />
   <Route path="components/Callbackrequest" element={<Callbackrequest />} />
   <Route path="components/Help" element={<Help />} />
@@ -70,12 +94,19 @@ const AppRoutes = () => {
 
       {/* Agent Routes */}
 
-      <Route path="/agent" element={<AgentLayout />}>
-        <Route index element={<AgentDashboard />} />
-      </Route>
+     
+     
 
 
       {/* SuperAdmin Routes */}
+       <Route
+              path="/superadmin"
+              element={
+                <ProtectedRoute>
+                  <SuperAdminLayout />
+                </ProtectedRoute>
+              }
+            ></Route>
 
  <Route path="/superadmin" element={<SuperAdminLayout />}>
         <Route index element={<SuperAdminDashboard />} />
@@ -84,10 +115,9 @@ const AppRoutes = () => {
         <Route path="components/all-client" element={<AllClient />} />
         
       </Route>
+      </Routes>
 
-      {/* Chatbot Public Route */}
-      <Route path="/chatbot/:clientId" element={<ChatbotPage />} />
-    </Routes>
+ 
 
 
 
